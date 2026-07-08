@@ -940,6 +940,7 @@
 
     let appState = {
       employees: CONFIG.demoMode ? [...demoEmployees] : [],
+      registeredUsers: [],
       currentUser: null,
       runs: CONFIG.demoMode ? [...demoRuns] : [],
       selectedEmployee: null
@@ -962,7 +963,7 @@
         return { ok: true, employee };
       }
       if (!CONFIG.apiUrl) {
-        throw new Error("กรุณาใส่ Google Apps Script Web App URL ใน CONFIG.apiUrl เพื่อบันทึกข้อมูลจริงลง Google Sheet");
+        throw new Error("ยังไม่ได้เชื่อม URL บันทึกข้อมูล กรุณานำ Google Apps Script ไป Deploy แล้วใส่ Web App URL ใน CONFIG.apiUrl");
       }
       const res = await fetch(CONFIG.apiUrl, {
         method: "POST",
@@ -988,20 +989,24 @@
       return false;
     }
 
-    async function loadEmployeesFromSheet(force = false) {
-      if (!force && appState.employees.length) return appState.employees;
-      const sheetUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.spreadsheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(CONFIG.employeesSheetName)}`;
+    async function loadSheetRows(sheetName) {
+      const sheetUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.spreadsheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
       const json = await loadGoogleVisualizationJson(sheetUrl);
       const rawRows = (json.table.rows || []).map(row => (row.c || []).map(cell => cell?.f ?? cell?.v ?? ""));
       const columnLabels = json.table.cols.map(col => String(col.label || "").trim());
       const labelsAreUseful = columnLabels.some(label => label && !/^[A-Z]+$/i.test(label));
       const headers = labelsAreUseful ? columnLabels : (rawRows.shift() || []).map(value => String(value || "").trim());
-      const rows = rawRows.map(values => {
+      return rawRows.map(values => {
         return headers.reduce((obj, header, index) => {
           obj[header] = values[index] || "";
           return obj;
         }, {});
       });
+    }
+
+    async function loadEmployeesFromSheet(force = false) {
+      if (!force && appState.employees.length) return appState.employees;
+      const rows = await loadSheetRows(CONFIG.employeesSheetName);
       appState.employees = rows
         .filter(row => row["Emp ID"])
         .map(row => {
@@ -1021,6 +1026,35 @@
           };
         });
       return appState.employees;
+    }
+
+    async function loadRegisteredDataFromSheet() {
+      const users = await loadSheetRows("Users");
+      let runs = [];
+      try {
+        runs = await loadSheetRows("Runs");
+      } catch (err) {
+        runs = [];
+      }
+      const totals = runs.reduce((map, row) => {
+        const code = normalizeCode(row.code);
+        map[code] = (map[code] || 0) + Number(row.distance || 0);
+        return map;
+      }, {});
+
+      appState.registeredUsers = users
+        .filter(row => row.code)
+        .map(row => ({
+          code: normalizeCode(row.code),
+          name: row.name || "-",
+          department: row.department || "-",
+          goal: Number(row.goal || 0),
+          total: Number(totals[normalizeCode(row.code)] || 0)
+        }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 10);
+      appState.runs = runs;
+      return appState.registeredUsers;
     }
 
     function loadGoogleVisualizationJson(url) {
@@ -1115,13 +1149,13 @@
     }
 
     function renderStats() {
-      const employees = [...appState.employees].sort((a, b) => b.total - a.total);
-      const total = employees.reduce((sum, item) => sum + Number(item.total || 0), 0);
-      const top = employees[0] || { name: "-", total: 0 };
-      const average = employees.length ? total / employees.length : 0;
+      const registeredUsers = [...appState.registeredUsers].sort((a, b) => b.total - a.total);
+      const total = registeredUsers.reduce((sum, item) => sum + Number(item.total || 0), 0);
+      const top = registeredUsers[0] || { name: "-", total: 0 };
+      const average = registeredUsers.length ? total / registeredUsers.length : 0;
       const stats = [
-        ["👥", "พนักงานในระบบ", `${intFmt.format(employees.length)} <small>คน</small>`, "ข้อมูลจาก Google Sheet แท็บ Employees", "icon-orange"],
-        ["👟", "ระยะทางรวมทั้งหมด", `${fmt.format(total)} <small>กม.</small>`, "จะอัปเดตจากชีต Runs เมื่อเชื่อม Apps Script", "icon-blue"],
+        ["👥", "ผู้ลงทะเบียนแล้ว", `${intFmt.format(registeredUsers.length)} <small>คน</small>`, "ข้อมูลจาก Google Sheet แท็บ Users", "icon-orange"],
+        ["👟", "ระยะทางรวมทั้งหมด", `${fmt.format(total)} <small>กม.</small>`, "รวมจาก Google Sheet แท็บ Runs", "icon-blue"],
         ["🏆", "ผู้วิ่งสูงสุดวันนี้", top.name, `ระยะทาง <span class="orange-text">${fmt.format(top.total || 0)}</span> กม.`, "icon-red"],
         ["▥", "ค่าเฉลี่ยต่อคน", `${fmt.format(average)} <small>กม.</small>`, "คำนวณจากผลวิ่งที่บันทึกจริง", "icon-blue"]
       ];
@@ -1131,14 +1165,14 @@
           <div><p class="stat-label">${label}</p><p class="stat-value">${value}</p><p class="stat-sub">${sub}</p></div>
         </article>
       `).join("");
-      document.getElementById("sideParticipants").innerHTML = `${intFmt.format(employees.length)} <small>คน</small>`;
+      document.getElementById("sideParticipants").innerHTML = `${intFmt.format(registeredUsers.length)} <small>คน</small>`;
       document.getElementById("sideTotalDistance").innerHTML = `${fmt.format(total)} <small>กม.</small>`;
       document.getElementById("sideTodayTop").textContent = top.name;
     }
 
     function renderLeaderboard() {
-      const employees = [...appState.employees].sort((a, b) => b.total - a.total);
-      document.getElementById("leaderboardRows").innerHTML = employees.length ? employees.map((item, index) => `
+      const registeredUsers = [...appState.registeredUsers].sort((a, b) => b.total - a.total).slice(0, 10);
+      document.getElementById("leaderboardRows").innerHTML = registeredUsers.length ? registeredUsers.map((item, index) => `
         <tr>
           <td><span class="rank ${rankClass(index)}">${index + 1}</span></td>
           <td>${item.code}</td>
@@ -1146,8 +1180,8 @@
           <td>${item.department}</td>
           <td><b class="orange-text">${fmt.format(item.total)}</b></td>
         </tr>
-      `).join("") : `<tr><td colspan="5" style="text-align:center">กำลังรอข้อมูลจาก Google Sheet</td></tr>`;
-      document.getElementById("todayTopList").innerHTML = employees.slice(0, 5).map((item, index) => `
+      `).join("") : `<tr><td colspan="5" style="text-align:center">ยังไม่มีผู้ลงทะเบียน หรือยังไม่มีข้อมูลในชีต Users</td></tr>`;
+      document.getElementById("todayTopList").innerHTML = registeredUsers.slice(0, 5).map((item, index) => `
         <li><span class="rank ${rankClass(index)}">${index + 1}</span><b>${item.name}</b><b class="orange-text">${fmt.format(item.total || 0)} กม.</b></li>
       `).join("") || `<li style="display:block;color:#6f7f99">ยังไม่มีข้อมูลอันดับ</li>`;
     }
@@ -1388,6 +1422,9 @@
       try {
         if (!CONFIG.demoMode) {
           await loadEmployeesFromSheet(true);
+          await loadRegisteredDataFromSheet();
+        } else {
+          appState.registeredUsers = [...appState.employees];
         }
       } catch (err) {
         toast(err.message);
