@@ -992,9 +992,11 @@
       if (!force && appState.employees.length) return appState.employees;
       const sheetUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.spreadsheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(CONFIG.employeesSheetName)}`;
       const json = await loadGoogleVisualizationJson(sheetUrl);
-      const headers = json.table.cols.map(col => String(col.label || "").trim());
-      const rows = (json.table.rows || []).map(row => {
-        const values = (row.c || []).map(cell => cell?.f ?? cell?.v ?? "");
+      const rawRows = (json.table.rows || []).map(row => (row.c || []).map(cell => cell?.f ?? cell?.v ?? ""));
+      const columnLabels = json.table.cols.map(col => String(col.label || "").trim());
+      const labelsAreUseful = columnLabels.some(label => label && !/^[A-Z]+$/i.test(label));
+      const headers = labelsAreUseful ? columnLabels : (rawRows.shift() || []).map(value => String(value || "").trim());
+      const rows = rawRows.map(values => {
         return headers.reduce((obj, header, index) => {
           obj[header] = values[index] || "";
           return obj;
