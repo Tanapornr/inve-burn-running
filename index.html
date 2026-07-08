@@ -1,0 +1,1259 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>INVE BURN RUNNING 2026</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #001f55;
+      --navy-2: #062f73;
+      --orange: #ff3d13;
+      --orange-2: #ff8a00;
+      --red: #ef2b24;
+      --blue-soft: #eef6ff;
+      --ink: #071f4d;
+      --muted: #6f7f99;
+      --line: #dfe7f2;
+      --card: #ffffff;
+      --shadow: 0 12px 35px rgba(0, 31, 85, .10);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: "Noto Sans Thai", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 0 10%, rgba(255, 114, 13, .12), transparent 30%),
+        linear-gradient(180deg, #fff 0%, #f8fbff 56%, #fff 100%);
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; border: 0; }
+    a { color: inherit; text-decoration: none; }
+    .container { width: min(1690px, calc(100% - 96px)); margin: 0 auto; }
+
+    .topbar {
+      height: 88px;
+      display: flex;
+      align-items: center;
+      background: rgba(255,255,255,.94);
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      backdrop-filter: blur(10px);
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 28px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 260px;
+    }
+
+    .runner-mark {
+      width: 58px;
+      height: 58px;
+      position: relative;
+    }
+
+    .runner-mark::before {
+      content: "";
+      position: absolute;
+      inset: 7px 18px 12px 10px;
+      background: linear-gradient(135deg, var(--orange), var(--orange-2));
+      clip-path: polygon(46% 0, 66% 12%, 54% 38%, 90% 47%, 75% 62%, 48% 54%, 32% 100%, 8% 100%, 28% 50%, 0 60%, 0 39%, 34% 25%);
+      transform: skewX(-10deg);
+    }
+
+    .runner-mark::after {
+      content: "";
+      position: absolute;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      right: 12px;
+      top: 2px;
+      background: var(--orange);
+      box-shadow: -30px 30px 0 -2px var(--navy);
+    }
+
+    .brand-text {
+      line-height: .92;
+      font-weight: 900;
+      letter-spacing: .4px;
+      font-size: 30px;
+    }
+
+    .brand-text span { color: var(--orange); }
+    .brand-text small { display: block; font-size: 27px; letter-spacing: 1px; }
+
+    .menu {
+      display: flex;
+      align-items: center;
+      gap: 34px;
+      font-weight: 650;
+      color: var(--navy);
+    }
+
+    .menu a {
+      padding: 32px 4px 26px;
+      border-bottom: 4px solid transparent;
+    }
+
+    .menu a.active { border-color: var(--orange); }
+    .nav-actions { display: flex; align-items: center; gap: 16px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 50px;
+      padding: 0 28px;
+      border-radius: 10px;
+      font-weight: 800;
+      transition: .2s ease;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+    .btn-outline { color: var(--orange); border: 1.5px solid var(--orange); background: #fff; }
+    .btn-navy { color: #fff; background: linear-gradient(135deg, #001f55, #021843); box-shadow: 0 8px 18px rgba(0,31,85,.22); }
+    .btn-orange { color: #fff; background: linear-gradient(135deg, var(--orange), var(--orange-2)); }
+    .btn-ghost { border: 1px solid #cdd9ea; background: #fff; color: var(--navy); }
+
+    .page { display: none; min-height: calc(100vh - 168px); }
+    .page.active { display: block; }
+
+    .hero {
+      min-height: 286px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      align-items: center;
+      background:
+        linear-gradient(90deg, rgba(255, 122, 20, .16) 0%, rgba(255,255,255,.96) 36%, rgba(232,244,255,.82) 100%),
+        linear-gradient(135deg, #fff 0%, #eff7ff 100%);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(110deg, transparent 0 63%, rgba(255,61,19,.95) 63% 64%, transparent 64%),
+        linear-gradient(106deg, transparent 0 70%, rgba(255,61,19,.86) 70% 72%, transparent 72%),
+        repeating-linear-gradient(90deg, rgba(8,54,115,.10) 0 2px, transparent 2px 74px);
+      opacity: .45;
+      pointer-events: none;
+    }
+
+    .skyline {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 65%;
+      height: 100%;
+      opacity: .55;
+      background:
+        linear-gradient(to top, rgba(28,80,140,.15), transparent 34%),
+        repeating-linear-gradient(to right, transparent 0 52px, rgba(4,45,99,.14) 52px 72px, transparent 72px 105px);
+      clip-path: polygon(0 100%, 0 52%, 5% 52%, 5% 43%, 9% 43%, 9% 61%, 13% 61%, 13% 36%, 18% 36%, 18% 56%, 23% 56%, 23% 28%, 28% 28%, 28% 58%, 36% 58%, 36% 40%, 42% 40%, 42% 68%, 100% 68%, 100% 100%);
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: 1fr .92fr;
+      align-items: center;
+      gap: 34px;
+      min-height: 286px;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(45px, 5vw, 80px);
+      line-height: .98;
+      letter-spacing: -2px;
+      color: var(--navy);
+      font-weight: 900;
+      font-style: italic;
+    }
+
+    .hero h1 span { color: var(--orange); position: relative; }
+    .hero p { margin: 12px 0 0; font-size: 23px; font-weight: 800; }
+    .tagline { margin-top: 12px; color: var(--navy); font-size: 17px; }
+    .tagline b { color: var(--orange); font-size: 28px; vertical-align: -2px; }
+
+    .runner-scene {
+      min-height: 250px;
+      position: relative;
+    }
+
+    .track {
+      position: absolute;
+      left: 5%;
+      right: -14%;
+      bottom: 20px;
+      height: 48px;
+      background: linear-gradient(170deg, transparent 0 36%, var(--orange) 36% 48%, rgba(255,120,0,.75) 48% 58%, transparent 58%);
+      transform: skewY(-6deg);
+    }
+
+    .runner {
+      position: absolute;
+      bottom: 46px;
+      width: 150px;
+      height: 185px;
+      filter: drop-shadow(0 12px 16px rgba(0,31,85,.14));
+    }
+
+    .runner.large { right: 42%; transform: scale(1.18); }
+    .runner.small { right: 8%; transform: scale(.88); }
+    .runner.mini { right: -3%; bottom: 72px; transform: scale(.43); opacity: .85; }
+
+    .head { width: 25px; height: 28px; background: #00275f; border-radius: 50% 50% 45% 50%; position: absolute; left: 66px; top: 2px; }
+    .torso { width: 62px; height: 54px; background: var(--orange); border-radius: 9px 26px 12px 16px; position: absolute; left: 47px; top: 34px; transform: rotate(11deg); }
+    .arm-a, .arm-b, .leg-a, .leg-b { position: absolute; background: #00275f; border-radius: 20px; transform-origin: top; }
+    .arm-a { width: 15px; height: 74px; left: 47px; top: 44px; transform: rotate(42deg); }
+    .arm-b { width: 15px; height: 72px; left: 102px; top: 41px; transform: rotate(-50deg); }
+    .leg-a { width: 18px; height: 95px; left: 63px; top: 82px; transform: rotate(34deg); }
+    .leg-b { width: 18px; height: 100px; left: 91px; top: 78px; transform: rotate(-58deg); }
+    .shoe-a, .shoe-b { position: absolute; width: 43px; height: 14px; background: var(--orange); border-radius: 100% 20% 45% 20%; }
+    .shoe-a { left: 89px; top: 164px; transform: rotate(8deg); }
+    .shoe-b { left: 7px; top: 143px; transform: rotate(-14deg); }
+
+    .section-space { padding: 22px 0 10px; }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .stat-card, .panel {
+      background: rgba(255,255,255,.94);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .stat-card {
+      min-height: 118px;
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      padding: 18px 22px;
+    }
+
+    .icon-circle {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-size: 31px;
+      flex: 0 0 auto;
+    }
+
+    .icon-orange { background: linear-gradient(135deg, var(--orange-2), var(--orange)); }
+    .icon-blue { background: linear-gradient(135deg, #003c94, #001f55); }
+    .icon-red { background: linear-gradient(135deg, #ff3b36, #e51f1c); }
+    .stat-label { margin: 0; font-weight: 700; font-size: 15px; }
+    .stat-value { margin: 0; font-size: 30px; font-weight: 900; line-height: 1.05; }
+    .stat-value small { font-size: 17px; font-weight: 700; }
+    .stat-sub { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+    .up { color: #098b4a; font-weight: 800; }
+    .orange-text { color: var(--orange); }
+
+    .home-layout {
+      display: grid;
+      grid-template-columns: 1.55fr .85fr;
+      gap: 16px;
+      padding-bottom: 10px;
+    }
+
+    .panel { overflow: hidden; }
+    .panel-head {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      background: linear-gradient(135deg, #001f55, #00153b);
+      color: #fff;
+      font-weight: 850;
+      font-size: 18px;
+    }
+
+    .live { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+    .live::before { content: ""; width: 11px; height: 11px; background: #ff2323; border-radius: 50%; box-shadow: 0 0 0 4px rgba(255,35,35,.12); }
+
+    table { border-collapse: collapse; width: 100%; }
+    th, td { padding: 9px 14px; border-bottom: 1px solid var(--line); text-align: left; }
+    th { background: #f6f9fd; font-weight: 800; color: var(--navy); }
+    td:last-child, th:last-child { text-align: right; }
+    tbody tr:nth-child(1), tbody tr:nth-child(2), tbody tr:nth-child(3) { background: linear-gradient(90deg, rgba(255,138,0,.10), transparent); }
+    .rank {
+      display: inline-grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #f3f6fb;
+      color: var(--navy);
+      font-weight: 800;
+    }
+    .rank.top1 { background: linear-gradient(135deg, #ffd45b, #f5a400); color: #fff; }
+    .rank.top2 { background: linear-gradient(135deg, #d9dee8, #9da9ba); color: #fff; }
+    .rank.top3 { background: linear-gradient(135deg, #d9874a, #b55a2b); color: #fff; }
+    .panel-body { padding: 24px 28px; }
+    .rules h2, .mini-card h3 { margin: 0 0 14px; font-size: 25px; }
+    .check-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+    .check-list li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; color: #17325f; }
+    .check-list li::before { content: "✓"; background: var(--orange); color: #fff; border-radius: 50%; width: 18px; height: 18px; display: grid; place-items: center; font-size: 12px; font-weight: 900; margin-top: 3px; }
+
+    .footer {
+      margin-top: 22px;
+      min-height: 76px;
+      background: linear-gradient(135deg, #001f55, #00143a);
+      color: #fff;
+      display: flex;
+      align-items: center;
+    }
+    .footer-inner { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+    .footer strong { display: block; }
+    .footer small, .footer a { color: rgba(255,255,255,.86); }
+    .social { display: flex; gap: 13px; }
+    .social span { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.14); font-weight: 900; }
+    .social span:nth-child(2) { background: #20d642; }
+
+    .title-hero {
+      padding: 52px 0 44px;
+      min-height: 200px;
+    }
+    .title-hero h1 { margin: 0; font-size: clamp(38px, 4vw, 58px); font-weight: 900; }
+    .title-hero p { margin: 10px 0 0; font-size: 18px; color: #385076; }
+
+    .form-shell {
+      display: grid;
+      grid-template-columns: 1.65fr .82fr;
+      gap: 58px;
+      background: rgba(255,255,255,.96);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 36px 46px;
+      margin-top: -24px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .step-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 0 0 18px;
+      font-size: 20px;
+      font-weight: 850;
+    }
+    .step-title span:first-child {
+      width: 31px;
+      height: 31px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: var(--navy);
+      font-size: 15px;
+    }
+    .divider { height: 1px; border: 0; border-top: 1px dashed #cdd8e8; margin: 20px 0; }
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 34px; }
+    label { display: block; margin-bottom: 7px; font-weight: 750; }
+    .req { color: var(--orange); }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid #cbd6e6;
+      border-radius: 8px;
+      min-height: 44px;
+      padding: 0 14px;
+      color: var(--ink);
+      background: #fff;
+      outline: none;
+      transition: border .2s, box-shadow .2s;
+    }
+    textarea { padding: 12px 14px; min-height: 70px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { border-color: #2576ff; box-shadow: 0 0 0 3px rgba(37,118,255,.13); }
+    input[readonly] { background: #f4f7fb; color: #7a889e; }
+    .helper { color: #7a889e; font-size: 13px; margin-top: 6px; }
+    .inline-ok { display: inline-flex; align-items: center; gap: 8px; color: #098b4a; font-weight: 800; margin-left: 12px; }
+    .distance-options { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+    .distance-option {
+      border: 1px solid #cbd6e6;
+      border-radius: 8px;
+      padding: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 66px;
+      background: #fff;
+      cursor: pointer;
+    }
+    .distance-option.active { border-color: var(--orange); background: #fff6f2; color: var(--orange); }
+    .distance-option input { width: auto; min-height: auto; accent-color: var(--orange); }
+    .distance-option strong { font-size: 18px; }
+    .distance-option small { display: block; color: #7b89a0; }
+    .info-art {
+      min-height: 520px;
+      border-radius: 12px;
+      padding: 42px 50px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.90), rgba(255,235,222,.85)),
+        radial-gradient(circle at 50% 78%, rgba(0,31,85,.13), transparent 31%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: left;
+    }
+    .shield { width: 82px; height: 88px; display: grid; place-items: center; color: #fff; font-size: 39px; background: linear-gradient(135deg, var(--orange), var(--orange-2)); clip-path: polygon(50% 0, 92% 17%, 86% 72%, 50% 100%, 14% 72%, 8% 17%); }
+    .info-art h2 { margin: 24px 0 16px; font-size: 25px; }
+
+    .login-layout {
+      display: grid;
+      grid-template-columns: .9fr .72fr .54fr;
+      gap: 30px;
+      align-items: stretch;
+      padding: 58px 0 40px;
+    }
+    .login-promo h1 {
+      margin: 0;
+      font-size: clamp(48px, 4.6vw, 80px);
+      line-height: .98;
+      font-style: italic;
+      font-weight: 900;
+    }
+    .login-promo h1 span { color: var(--orange); }
+    .login-card { padding: 48px 40px; }
+    .login-card h1 { margin: 0 0 6px; text-align: center; font-size: 38px; font-weight: 900; }
+    .login-card p { margin: 0 0 28px; text-align: center; color: var(--muted); }
+    .form-row { margin-bottom: 18px; }
+    .row-between { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+    .muted-link { color: #1265ff; font-weight: 700; }
+    .login-side { padding: 30px; }
+    .side-stat { display: grid; grid-template-columns: 76px 1fr; gap: 18px; align-items: center; margin: 18px 0 30px; }
+    .quote { background: #f1f6fc; padding: 20px; border-radius: 13px; color: #17325f; font-style: italic; text-align: center; font-weight: 750; }
+
+    .dashboard-hero { min-height: 170px; }
+    .dashboard-hero .hero-content { min-height: 170px; }
+    .dashboard-hero h1 { font-size: clamp(34px, 3vw, 48px); font-style: normal; letter-spacing: 0; }
+    .user-mini { display: flex; align-items: center; gap: 12px; }
+    .avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; background: #dfe7f2; }
+    .bell { position: relative; font-size: 25px; }
+    .bell span { position: absolute; right: -8px; top: -10px; background: var(--orange); color: #fff; border-radius: 50%; min-width: 19px; height: 19px; display: grid; place-items: center; font-size: 11px; font-weight: 900; }
+    .dashboard-grid { display: grid; grid-template-columns: 1fr .75fr .46fr; gap: 18px; }
+    .progress-card { padding: 26px; }
+    .progress-flex { display: grid; grid-template-columns: 220px 1fr; gap: 34px; align-items: center; }
+    .donut {
+      width: 190px;
+      height: 190px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: conic-gradient(var(--orange) calc(var(--percent) * 1%), #e7edf6 0);
+      position: relative;
+    }
+    .donut::after {
+      content: "";
+      position: absolute;
+      width: 128px;
+      height: 128px;
+      border-radius: 50%;
+      background: #fff;
+    }
+    .donut strong { position: relative; z-index: 1; font-size: 40px; }
+    .bar { height: 15px; background: #dce4ef; border-radius: 20px; overflow: hidden; margin: 14px 0; }
+    .bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--orange), var(--orange-2)); border-radius: inherit; }
+    .notice { background: #edf5ff; color: #245184; border-radius: 8px; padding: 12px 18px; margin-top: 18px; }
+    .upload-box {
+      border: 1px dashed #99abc3;
+      border-radius: 10px;
+      min-height: 96px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: #445876;
+      background: #fbfdff;
+      padding: 14px;
+    }
+    .upload-preview { width: 96px; height: 78px; object-fit: cover; border-radius: 8px; }
+    .record-layout { display: grid; grid-template-columns: 110px 1fr; gap: 16px; }
+    .mini-card { padding: 22px; margin-bottom: 18px; }
+    .top-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+    .top-list li { display: grid; grid-template-columns: 30px 1fr auto; gap: 8px; align-items: center; }
+
+    .toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 50;
+      max-width: 380px;
+      background: #001f55;
+      color: #fff;
+      border-radius: 12px;
+      padding: 14px 18px;
+      box-shadow: 0 16px 35px rgba(0,31,85,.28);
+      transform: translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: .22s;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 45;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,31,85,.45);
+      padding: 24px;
+    }
+    .modal.show { display: flex; }
+    .modal-card { width: min(520px, 100%); background: #fff; border-radius: 18px; padding: 28px; box-shadow: 0 20px 50px rgba(0,0,0,.24); }
+    .modal-card h2 { margin: 0 0 14px; }
+
+    @media (max-width: 1200px) {
+      .container { width: min(100% - 36px, 1100px); }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .home-layout, .form-shell, .login-layout, .dashboard-grid { grid-template-columns: 1fr; }
+      .runner-scene { min-height: 210px; }
+      .distance-options { grid-template-columns: repeat(2, 1fr); }
+      .menu { display: none; }
+    }
+
+    @media (max-width: 700px) {
+      .topbar { height: auto; padding: 12px 0; }
+      .brand { min-width: 0; }
+      .brand-text { font-size: 22px; }
+      .brand-text small { font-size: 19px; }
+      .nav { flex-wrap: wrap; }
+      .nav-actions { width: 100%; }
+      .nav-actions .btn { flex: 1; padding: 0 10px; }
+      .hero-content, .progress-flex, .record-layout, .field-grid { grid-template-columns: 1fr; }
+      .runner-scene { display: none; }
+      .stats-grid { grid-template-columns: 1fr; }
+      .form-shell, .login-card { padding: 24px 18px; }
+      .distance-options { grid-template-columns: 1fr; }
+      th:nth-child(4), td:nth-child(4) { display: none; }
+      .footer-inner { flex-direction: column; align-items: flex-start; padding: 18px 0; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a class="brand" href="#home" data-page-link="home" aria-label="INVE BURN RUNNING 2026">
+        <span class="runner-mark"></span>
+        <span class="brand-text">INVE <span>BURN</span><small>RUNNING 2026</small></span>
+      </a>
+      <nav class="menu">
+        <a href="#home" class="active" data-page-link="home">⌂ หน้าแรก</a>
+        <a href="#about">เกี่ยวกับกิจกรรม</a>
+        <a href="#ranking">อันดับ</a>
+        <a href="#news">ข่าวสาร</a>
+        <a href="#faq">FAQ</a>
+        <a href="#contact">◎ ติดต่อเรา</a>
+      </nav>
+      <div class="nav-actions" id="guestActions">
+        <button class="btn btn-outline" data-page-link="register">♙ ลงทะเบียน</button>
+        <button class="btn btn-navy" data-page-link="login">↪ เข้าสู่ระบบ</button>
+      </div>
+      <div class="nav-actions user-mini" id="userActions" style="display:none">
+        <div class="bell">🔔<span>3</span></div>
+        <img class="avatar" id="navAvatar" alt="รูปผู้ใช้" />
+        <div>
+          <strong id="navName">ผู้ใช้งาน</strong><br>
+          <small id="navCode">EMP000000</small>
+        </div>
+        <button class="btn btn-ghost" id="logoutBtn">ออก</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="homePage" class="page active">
+      <div class="hero">
+        <div class="skyline"></div>
+        <div class="container hero-content">
+          <div>
+            <h1>INVE <span>BURN</span><br>RUNNING 2026</h1>
+            <p>กิจกรรมสะสมระยะวิ่งของพนักงาน ประจำปี 2026</p>
+            <div class="tagline"><b>›</b> วิ่งด้วยกัน สุขภาพดีไปด้วยกัน ก้าวไปสู่เป้าหมายเดียวกัน</div>
+          </div>
+          <div class="runner-scene" aria-hidden="true">
+            <div class="skyline"></div>
+            <div class="track"></div>
+            <div class="runner large"><span class="head"></span><span class="torso"></span><span class="arm-a"></span><span class="arm-b"></span><span class="leg-a"></span><span class="leg-b"></span><span class="shoe-a"></span><span class="shoe-b"></span></div>
+            <div class="runner small"><span class="head"></span><span class="torso"></span><span class="arm-a"></span><span class="arm-b"></span><span class="leg-a"></span><span class="leg-b"></span><span class="shoe-a"></span><span class="shoe-b"></span></div>
+            <div class="runner mini"><span class="head"></span><span class="torso"></span><span class="arm-a"></span><span class="arm-b"></span><span class="leg-a"></span><span class="leg-b"></span><span class="shoe-a"></span><span class="shoe-b"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container section-space">
+        <div class="stats-grid" id="mainStats"></div>
+      </div>
+
+      <div class="container home-layout">
+        <section class="panel" id="ranking">
+          <div class="panel-head"><span>🏆 อันดับผู้วิ่งระยะทางสะสม</span><span class="live">LIVE</span></div>
+          <div style="overflow:auto">
+            <table>
+              <thead>
+                <tr><th>อันดับ</th><th>รหัสพนักงาน</th><th>ชื่อ-นามสกุล</th><th>แผนก</th><th>ระยะทางสะสม (กม.)</th></tr>
+              </thead>
+              <tbody id="leaderboardRows"></tbody>
+            </table>
+          </div>
+          <div class="panel-body" style="text-align:center;padding-top:12px">
+            <button class="btn btn-ghost">ดูอันดับทั้งหมด →</button>
+          </div>
+        </section>
+
+        <aside class="panel rules" id="about">
+          <div class="panel-body">
+            <h2>📋 กติกา / วิธีการเข้าร่วม</h2>
+            <ul class="check-list">
+              <li>กิจกรรมนี้สำหรับพนักงาน INVE ทุกคน</li>
+              <li>สะสมระยะการวิ่ง ตั้งแต่วันที่ 1 ม.ค. – 31 ธ.ค. 2026</li>
+              <li>บันทึกระยะการวิ่งผ่านแอปหรืออุปกรณ์ที่รองรับ เช่น Strava, Garmin, Apple Health, Google Fit</li>
+              <li>ระยะจะถูกนับเฉพาะกิจกรรมวิ่งเท่านั้น ไม่นับรวมการเดินหรือกิจกรรมอื่น</li>
+              <li>สามารถบันทึกระยะได้ไม่จำกัดจำนวนครั้ง</li>
+              <li>ผู้ที่มีระยะสะสมสูงสุดจะได้รับรางวัลตามลำดับ</li>
+            </ul>
+            <button class="btn btn-outline" style="width:100%;margin-top:24px">⇩ ดาวน์โหลดคู่มือกิจกรรม (PDF)</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="registerPage" class="page">
+      <div class="hero title-hero">
+        <div class="skyline"></div>
+        <div class="container hero-content">
+          <div>
+            <h1>ลงทะเบียนเข้าร่วมกิจกรรม</h1>
+            <p>พนักงานสามารถสมัครเข้าร่วมกิจกรรมวิ่งสะสมระยะวิ่งของพนักงาน ประจำปี 2026</p>
+          </div>
+          <div class="runner-scene">
+            <div class="track"></div>
+            <div class="runner large"><span class="head"></span><span class="torso"></span><span class="arm-a"></span><span class="arm-b"></span><span class="leg-a"></span><span class="leg-b"></span><span class="shoe-a"></span><span class="shoe-b"></span></div>
+            <div class="runner small"><span class="head"></span><span class="torso"></span><span class="arm-a"></span><span class="arm-b"></span><span class="leg-a"></span><span class="leg-b"></span><span class="shoe-a"></span><span class="shoe-b"></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="container">
+        <div class="form-shell">
+          <form id="registerForm">
+            <div class="step-title"><span>1</span><span>ค้นหาข้อมูลพนักงาน</span></div>
+            <label for="employeeCode">รหัสพนักงาน <span class="req">*</span></label>
+            <div class="row-between">
+              <input id="employeeCode" name="employeeCode" placeholder="เช่น 018" required />
+              <span class="inline-ok" id="employeeFound" style="display:none">● พบข้อมูลพนักงาน</span>
+            </div>
+            <div class="helper">เมื่อกรอกรหัสพนักงาน ระบบจะแสดงข้อมูลชื่อและแผนกโดยอัตโนมัติ</div>
+            <hr class="divider">
+
+            <div class="step-title"><span>2</span><span>ข้อมูลพนักงาน <small class="helper" style="margin-left:8px">ดึงข้อมูลอัตโนมัติ</small></span></div>
+            <div class="field-grid">
+              <div>
+                <label>ชื่อ-นามสกุล</label>
+                <input id="employeeName" readonly placeholder="รอค้นหาข้อมูล" />
+              </div>
+              <div>
+                <label>แผนก</label>
+                <input id="department" readonly placeholder="รอค้นหาข้อมูล" />
+              </div>
+            </div>
+            <hr class="divider">
+
+            <div class="step-title"><span>3</span><span>เลือกระยะกิโลที่ต้องการ</span></div>
+            <div class="distance-options" id="distanceOptions"></div>
+
+            <div class="step-title" style="margin-top:18px"><span>4</span><span>ตั้งรหัสผ่านสำหรับการเข้าใช้งาน</span></div>
+            <div class="field-grid">
+              <div>
+                <label for="password">ตั้งรหัสผ่าน <span class="req">*</span></label>
+                <input type="password" id="password" required minlength="6" placeholder="อย่างน้อย 6 ตัวอักษร" />
+              </div>
+              <div>
+                <label for="confirmPassword">ยืนยันรหัสผ่าน <span class="req">*</span></label>
+                <input type="password" id="confirmPassword" required minlength="6" />
+              </div>
+            </div>
+            <button class="btn btn-navy" style="width:min(520px,100%);margin:28px auto 0;display:flex">🏃 สมัครเข้าร่วม</button>
+            <p style="text-align:center;margin:10px 0 0">มีบัญชีอยู่แล้ว? <a class="muted-link" href="#login" data-page-link="login">เข้าสู่ระบบ</a></p>
+          </form>
+
+          <aside class="info-art">
+            <div class="shield">✓</div>
+            <h2>เข้าร่วมวิ่งสะสมระยะไปด้วยกัน!</h2>
+            <ul class="check-list">
+              <li>บันทึกระยะวิ่งสะสมของคุณ</li>
+              <li>เปรียบเทียบอันดับกับเพื่อนร่วมงาน</li>
+              <li>พิชิตเป้าหมายและรับรางวัลพิเศษ</li>
+              <li>เสริมสร้างสุขภาพที่ดีไปด้วยกัน</li>
+            </ul>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section id="loginPage" class="page">
+      <div class="container login-layout">
+        <div class="login-promo">
+          <h1>INVE <span>BURN</span><br>RUNNING 2026</h1>
+          <p style="font-size:22px;font-weight:800">กิจกรรมสะสมระยะวิ่งของพนักงาน ประจำปี 2026</p>
+          <div class="tagline"><b>›</b> วิ่งด้วยกัน สุขภาพดีไปด้วยกัน ก้าวไปสู่เป้าหมายเดียวกัน</div>
+          <div class="runner-scene" style="min-height:340px">
+            <div class="track"></div>
+            <div class="runner large"><span class="head"></span><span class="torso"></span><span class="arm-a"></span><span class="arm-b"></span><span class="leg-a"></span><span class="leg-b"></span><span class="shoe-a"></span><span class="shoe-b"></span></div>
+            <div class="runner small"><span class="head"></span><span class="torso"></span><span class="arm-a"></span><span class="arm-b"></span><span class="leg-a"></span><span class="leg-b"></span><span class="shoe-a"></span><span class="shoe-b"></span></div>
+          </div>
+        </div>
+
+        <form class="panel login-card" id="loginForm">
+          <h1>เข้าสู่ระบบ</h1>
+          <p>สำหรับพนักงานที่ลงทะเบียนเข้าร่วมกิจกรรมแล้ว</p>
+          <div class="form-row">
+            <label for="loginCode">รหัสพนักงาน</label>
+            <input id="loginCode" required placeholder="เช่น 018" />
+          </div>
+          <div class="form-row">
+            <label for="loginPassword">รหัสผ่าน</label>
+            <input id="loginPassword" type="password" required placeholder="กรอกรหัสผ่าน" />
+          </div>
+          <div class="row-between">
+            <label style="font-weight:500"><input type="checkbox" style="width:auto;min-height:auto"> จดจำฉัน</label>
+            <button class="muted-link" type="button" id="openForgot">ลืมรหัสผ่าน?</button>
+          </div>
+          <button class="btn btn-navy" style="width:100%;margin-top:24px">↪ เข้าสู่ระบบ</button>
+          <hr class="divider">
+          <p style="margin:0;text-align:center">ยังไม่มีบัญชี? <a class="muted-link" href="#register" data-page-link="register">ลงทะเบียน</a></p>
+        </form>
+
+        <aside class="panel login-side">
+          <h2 style="margin-top:0">🏃 ร่วมวิ่ง พิชิตเป้าหมายไปด้วยกัน!</h2>
+          <div class="side-stat"><span class="icon-circle icon-orange">👥</span><div><b>ผู้เข้าร่วมทั้งหมด</b><div class="stat-value" id="sideParticipants">1,248 <small>คน</small></div></div></div>
+          <div class="side-stat"><span class="icon-circle icon-blue">👟</span><div><b>ระยะทางรวมทั้งหมด</b><div class="stat-value" id="sideTotalDistance">48,732.56 <small>กม.</small></div></div></div>
+          <div class="side-stat"><span class="icon-circle icon-red">🏆</span><div><b>ผู้วิ่งสูงสุดวันนี้</b><div style="font-weight:900;font-size:21px" id="sideTodayTop">อภิชาติ วงศ์ไทย</div></div></div>
+          <div class="quote">“ทุกก้าวของคุณ<br>คือพลังของทีมเรา”</div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="dashboardPage" class="page">
+      <div class="hero dashboard-hero">
+        <div class="skyline"></div>
+        <div class="container hero-content">
+          <div>
+            <h1 id="welcomeName">สวัสดี คุณณัฐวุฒิ ศรีสมบัติ</h1>
+            <div class="tagline"><b>›</b> ร่วมวิ่งอย่าง สุขภาพดีไปด้วยกัน ก้าวไปสู่เป้าหมายเดียวกัน</div>
+          </div>
+          <div class="runner-scene">
+            <div class="track"></div>
+            <div class="runner small"><span class="head"></span><span class="torso"></span><span class="arm-a"></span><span class="arm-b"></span><span class="leg-a"></span><span class="leg-b"></span><span class="shoe-a"></span><span class="shoe-b"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container section-space">
+        <div class="stats-grid" id="userStats"></div>
+      </div>
+
+      <div class="container dashboard-grid">
+        <div>
+          <section class="panel progress-card">
+            <h2 style="margin-top:0">ความคืบหน้าเป้าหมาย</h2>
+            <div class="progress-flex">
+              <div class="donut" id="progressDonut" style="--percent:64"><strong id="progressPercent">64%</strong></div>
+              <div>
+                <div style="font-weight:800">วิ่งสะสมแล้ว</div>
+                <div class="stat-value" style="font-size:70px"><span id="dashTotal">128.5</span> <small>/ <span id="dashGoal">200</span> กม.</small></div>
+                <div class="bar"><span id="dashBar" style="width:64%"></span></div>
+                <div>✅ คุณเพิ่มระยะทางได้อีก <b class="up" id="dashRemain">71.5 กม.</b> เพื่อบรรลุเป้าหมาย</div>
+              </div>
+            </div>
+            <div class="notice">ⓘ ทุกการบันทึกผลการวิ่ง จะถูกนำไปรวมเป็นระยะสะสม ตั้งแต่ครั้งแรกที่เริ่มเข้าร่วมกิจกรรม</div>
+          </section>
+
+          <section class="panel" style="margin-top:18px">
+            <div class="panel-body">
+              <h2 style="margin-top:0">ประวัติการบันทึกผลการวิ่ง</h2>
+              <div style="overflow:auto">
+                <table>
+                  <thead><tr><th>วันที่</th><th>ระยะทาง (กม.)</th><th>สถานะรูปภาพ</th><th>หมายเหตุ</th><th>ระยะสะสม (กม.)</th></tr></thead>
+                  <tbody id="historyRows"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="panel-body">
+            <h2 style="margin-top:0">🏃 บันทึกผลการวิ่ง</h2>
+            <form id="runForm">
+              <label>อัปโหลดรูปหลักฐานการวิ่ง</label>
+              <div class="record-layout">
+                <img class="upload-preview" id="runPreview" alt="ตัวอย่างรูป" src="" style="display:none">
+                <label class="upload-box" for="runImage">
+                  <span>ลากไฟล์มาวางที่นี่<br>หรือ <b class="muted-link">คลิกเพื่อเลือกไฟล์</b><br><small>รองรับ JPG, JPEG, PNG ไม่เกิน 5MB</small></span>
+                </label>
+              </div>
+              <input type="file" id="runImage" accept="image/png,image/jpeg" hidden>
+              <div class="field-grid" style="margin-top:16px">
+                <div>
+                  <label for="runDistance">ระยะทางที่วิ่งได้ (กม.) <span class="req">*</span></label>
+                  <input id="runDistance" type="number" step="0.01" min="0.1" required placeholder="12.30">
+                </div>
+                <div>
+                  <label for="runDate">วันที่วิ่ง <span class="req">*</span></label>
+                  <input id="runDate" type="date" required>
+                </div>
+              </div>
+              <label for="runNote" style="margin-top:14px">หมายเหตุ (ไม่บังคับ)</label>
+              <textarea id="runNote" placeholder="เช่น วิ่งช่วงเย็น อากาศดี"></textarea>
+              <button class="btn btn-orange" style="width:100%;margin-top:12px">บันทึกผลการวิ่ง</button>
+            </form>
+          </div>
+        </section>
+
+        <aside>
+          <section class="panel mini-card">
+            <h3>🏅 อันดับของฉัน</h3>
+            <div style="border:1px solid var(--line);border-radius:10px;padding:18px;text-align:center">
+              <small>อันดับปัจจุบัน</small>
+              <div class="stat-value" id="myRank">15</div>
+              <small>จากพนักงานทั้งหมด <span id="rankTotalPeople">248</span> คน</small>
+            </div>
+          </section>
+          <section class="panel mini-card">
+            <h3>Top 5 วันนี้</h3>
+            <ul class="top-list" id="todayTopList"></ul>
+          </section>
+          <section class="panel mini-card">
+            <h3>เกร็ดน่ารู้</h3>
+            <p style="font-weight:800;color:#204176">การวิ่งอย่างสม่ำเสมอ ช่วยเสริมสร้างสุขภาพหัวใจ และลดความเครียดได้อย่างดีเยี่ยม</p>
+          </section>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div><strong>INVE BURN RUNNING 2026</strong><small>วิ่งด้วยกัน สุขภาพดีไปด้วยกัน ก้าวไปสู่เป้าหมายเดียวกัน</small></div>
+      <div><a href="#privacy">นโยบายความเป็นส่วนตัว</a> &nbsp; | &nbsp; <a href="#terms">เงื่อนไขการใช้งาน</a> &nbsp; | &nbsp; <a href="#contact">ติดต่อเรา</a></div>
+      <div>© 2026 INVE Company Limited. All rights reserved.</div>
+      <div class="social"><span>f</span><span>LINE</span><span>✉</span></div>
+    </div>
+  </footer>
+
+  <div class="modal" id="forgotModal">
+    <div class="modal-card">
+      <h2>ลืมรหัสผ่าน</h2>
+      <p class="helper">กรอกรหัสพนักงานเพื่อรับ OTP จากนั้นใส่รหัสผ่านใหม่</p>
+      <div class="form-row"><label>รหัสพนักงาน</label><input id="forgotCode" placeholder="EMP000123"></div>
+      <button class="btn btn-outline" id="requestOtp" style="width:100%">ขอรหัส OTP</button>
+      <div class="field-grid" style="margin-top:18px">
+        <div><label>OTP</label><input id="otpCode" placeholder="123456"></div>
+        <div><label>รหัสผ่านใหม่</label><input id="newPassword" type="password"></div>
+      </div>
+      <div class="row-between" style="margin-top:20px">
+        <button class="btn btn-ghost" id="closeForgot">ปิด</button>
+        <button class="btn btn-navy" id="resetPassword">เปลี่ยนรหัสผ่าน</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const CONFIG = {
+      apiUrl: "", // ใส่ URL Google Apps Script Web App ที่ Deploy แล้ว เช่น https://script.google.com/macros/s/xxxxx/exec
+      demoMode: true
+    };
+
+    const distanceChoices = [
+      { value: 50, label: "ระยะเริ่มต้น" },
+      { value: 100, label: "ท้าทายกำลังดี" },
+      { value: 200, label: "ท้าทายตัวเอง" },
+      { value: 300, label: "สายอึดตัวจริง" },
+      { value: 500, label: "สุดยอดนักวิ่ง" }
+    ];
+
+    const demoEmployees = [
+      { code: "018", name: "นาย มารุต ทับหุ่น", department: "Production", password: "123456", goal: 200, total: 128.50 },
+      { code: "EMP000123", name: "อภิชาติ วงศ์ไทย", department: "เทคโนโลยีสารสนเทศ", password: "123456", goal: 500, total: 525.34 },
+      { code: "EMP000456", name: "ณัฐวุฒิ ศรีสมบัติ", department: "วิศวกรรม", password: "123456", goal: 200, total: 128.50 },
+      { code: "EMP000789", name: "ปาริฉัตร แสงทอง", department: "การตลาด", password: "123456", goal: 300, total: 439.27 },
+      { code: "EMP000321", name: "ธนกฤต วัฒนธรรม", department: "บัญชีและการเงิน", password: "123456", goal: 200, total: 412.65 },
+      { code: "EMP000654", name: "ศศิธร จันทร์เพ็ญ", department: "ทรัพยากรบุคคล", password: "123456", goal: 100, total: 387.40 },
+      { code: "EMP000987", name: "กฤษฎา พงษ์ไพศาล", department: "ปฏิบัติการ", password: "123456", goal: 200, total: 356.22 },
+      { code: "EMP000111", name: "วัชรินทร์ แซ่หวัง", department: "จัดซื้อและซัพพลายเชน", password: "123456", goal: 100, total: 314.75 },
+      { code: "EMP000222", name: "อนันต์ ชัยประเสริฐ", department: "บริการลูกค้า", password: "123456", goal: 50, total: 298.51 }
+    ];
+
+    const demoRuns = [
+      { date: "2026-05-24", distance: 12.30, note: "วิ่งช่วงเย็น อากาศดี", imageUrl: "", cumulative: 128.50 },
+      { date: "2026-05-21", distance: 10.25, note: "วิ่งสวนสาธารณะ", imageUrl: "", cumulative: 116.20 },
+      { date: "2026-05-17", distance: 8.40, note: "วิ่งหลังเลิกงาน", imageUrl: "", cumulative: 105.95 },
+      { date: "2026-05-14", distance: 15.00, note: "Long Run วันหยุด", imageUrl: "", cumulative: 97.55 },
+      { date: "2026-05-10", distance: 7.80, note: "วิ่งเบาๆ", imageUrl: "", cumulative: 82.55 }
+    ];
+
+    let appState = {
+      employees: [...demoEmployees],
+      currentUser: null,
+      runs: [...demoRuns]
+    };
+
+    const fmt = new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const intFmt = new Intl.NumberFormat("th-TH");
+
+    function toast(message) {
+      const el = document.getElementById("toast");
+      el.textContent = message;
+      el.classList.add("show");
+      window.setTimeout(() => el.classList.remove("show"), 3000);
+    }
+
+    async function api(action, payload = {}) {
+      if (CONFIG.demoMode || !CONFIG.apiUrl) return demoApi(action, payload);
+      const res = await fetch(CONFIG.apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action, ...payload })
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.message || "เกิดข้อผิดพลาด");
+      return data;
+    }
+
+    async function demoApi(action, payload) {
+      await new Promise(resolve => setTimeout(resolve, 160));
+      const code = (payload.code || payload.employeeCode || "").trim().toUpperCase();
+      const employee = appState.employees.find(item => item.code.toUpperCase() === code);
+      if (action === "lookupEmployee") {
+        if (!employee) throw new Error("ไม่พบรหัสพนักงานนี้");
+        return { ok: true, employee };
+      }
+      if (action === "register") {
+        if (!employee) throw new Error("ไม่พบข้อมูลพนักงาน");
+        Object.assign(employee, { password: payload.password, goal: Number(payload.goal) });
+        return { ok: true, employee };
+      }
+      if (action === "login") {
+        if (!employee || employee.password !== payload.password) throw new Error("รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง");
+        return { ok: true, employee, runs: appState.runs };
+      }
+      if (action === "addRun") {
+        const user = appState.currentUser;
+        const distance = Number(payload.distance);
+        user.total = Number(user.total || 0) + distance;
+        const record = { date: payload.date, distance, note: payload.note || "-", imageUrl: payload.imageData || "", cumulative: user.total };
+        appState.runs = [record, ...appState.runs];
+        return { ok: true, employee: user, runs: appState.runs };
+      }
+      if (action === "requestOtp") return { ok: true, otp: "123456", message: "โหมดเดโมใช้ OTP: 123456" };
+      if (action === "resetPassword") {
+        if (!employee) throw new Error("ไม่พบรหัสพนักงานนี้");
+        employee.password = payload.newPassword;
+        return { ok: true };
+      }
+      return { ok: true };
+    }
+
+    function rankClass(index) {
+      if (index === 0) return "top1";
+      if (index === 1) return "top2";
+      if (index === 2) return "top3";
+      return "";
+    }
+
+    function renderStats() {
+      const employees = [...appState.employees].sort((a, b) => b.total - a.total);
+      const total = employees.reduce((sum, item) => sum + Number(item.total || 0), 0);
+      const top = employees[0];
+      const average = total / employees.length;
+      const stats = [
+        ["👥", "ผู้เข้าร่วมทั้งหมด", `${intFmt.format(1248)} <small>คน</small>`, `เพิ่มขึ้น <span class="up">12%</span> จากสัปดาห์ที่แล้ว ↑`, "icon-orange"],
+        ["👟", "ระยะทางรวมทั้งหมด", `${fmt.format(48732.56)} <small>กม.</small>`, "เทียบเท่าการวิ่ง 1,218 รอบสนามมาตรฐาน ⓘ", "icon-blue"],
+        ["🏆", "ผู้วิ่งสูงสุดวันนี้", top.name, `ระยะทาง <span class="orange-text">${fmt.format(32.45)}</span> กม.`, "icon-red"],
+        ["▥", "ค่าเฉลี่ยต่อคน", `${fmt.format(average)} <small>กม.</small>`, `เพิ่มขึ้น <span class="up">8%</span> จากสัปดาห์ที่แล้ว ↑`, "icon-blue"]
+      ];
+      document.getElementById("mainStats").innerHTML = stats.map(([icon, label, value, sub, color]) => `
+        <article class="stat-card">
+          <span class="icon-circle ${color}">${icon}</span>
+          <div><p class="stat-label">${label}</p><p class="stat-value">${value}</p><p class="stat-sub">${sub}</p></div>
+        </article>
+      `).join("");
+      document.getElementById("sideParticipants").innerHTML = "1,248 <small>คน</small>";
+      document.getElementById("sideTotalDistance").innerHTML = "48,732.56 <small>กม.</small>";
+      document.getElementById("sideTodayTop").textContent = top.name;
+    }
+
+    function renderLeaderboard() {
+      const employees = [...appState.employees].sort((a, b) => b.total - a.total);
+      document.getElementById("leaderboardRows").innerHTML = employees.map((item, index) => `
+        <tr>
+          <td><span class="rank ${rankClass(index)}">${index + 1}</span></td>
+          <td>${item.code}</td>
+          <td><b>${item.name}</b></td>
+          <td>${item.department}</td>
+          <td><b class="orange-text">${fmt.format(item.total)}</b></td>
+        </tr>
+      `).join("");
+      document.getElementById("todayTopList").innerHTML = employees.slice(0, 5).map((item, index) => `
+        <li><span class="rank ${rankClass(index)}">${index + 1}</span><b>${item.name}</b><b class="orange-text">${fmt.format(index === 0 ? 32.45 : 25.30 - index * 2.9)} กม.</b></li>
+      `).join("");
+    }
+
+    function renderDistanceOptions() {
+      document.getElementById("distanceOptions").innerHTML = distanceChoices.map((item, index) => `
+        <label class="distance-option ${index === 1 ? "active" : ""}">
+          <input type="radio" name="goal" value="${item.value}" ${index === 1 ? "checked" : ""}>
+          <span>👟</span>
+          <span><strong>${item.value} กม.</strong><small>${item.label}</small></span>
+        </label>
+      `).join("");
+      document.querySelectorAll(".distance-option").forEach(label => {
+        label.addEventListener("click", () => {
+          document.querySelectorAll(".distance-option").forEach(item => item.classList.remove("active"));
+          label.classList.add("active");
+        });
+      });
+    }
+
+    function setPage(page) {
+      document.querySelectorAll(".page").forEach(item => item.classList.remove("active"));
+      document.getElementById(`${page}Page`).classList.add("active");
+      document.querySelectorAll("[data-page-link]").forEach(item => item.classList.toggle("active", item.dataset.pageLink === page));
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function updateAuthUi() {
+      const user = appState.currentUser;
+      document.getElementById("guestActions").style.display = user ? "none" : "flex";
+      document.getElementById("userActions").style.display = user ? "flex" : "none";
+      if (!user) return;
+      document.getElementById("navName").textContent = user.name;
+      document.getElementById("navCode").textContent = `รหัสพนักงาน ${user.code}`;
+      document.getElementById("navAvatar").src = `https://ui-avatars.com/api/?background=eaf2ff&color=001f55&name=${encodeURIComponent(user.name)}`;
+    }
+
+    function renderDashboard() {
+      const user = appState.currentUser || appState.employees[1];
+      const goal = Number(user.goal || 200);
+      const total = Number(user.total || 0);
+      const percent = Math.min(100, Math.round(total / goal * 100));
+      const remain = Math.max(0, goal - total);
+      const sorted = [...appState.employees].sort((a, b) => b.total - a.total);
+      const rank = sorted.findIndex(item => item.code === user.code) + 1;
+      document.getElementById("welcomeName").textContent = `สวัสดี คุณ${user.name}`;
+      document.getElementById("dashTotal").textContent = fmt.format(total).replace(".00", "");
+      document.getElementById("dashGoal").textContent = intFmt.format(goal);
+      document.getElementById("progressPercent").textContent = `${percent}%`;
+      document.getElementById("progressDonut").style.setProperty("--percent", percent);
+      document.getElementById("dashBar").style.width = `${percent}%`;
+      document.getElementById("dashRemain").textContent = `${fmt.format(remain)} กม.`;
+      document.getElementById("myRank").textContent = rank || 15;
+      document.getElementById("rankTotalPeople").textContent = 248;
+      document.getElementById("userStats").innerHTML = [
+        ["▱", "ระยะทางสะสม", `${fmt.format(total)} <small>กม.</small>`, "เพิ่มขึ้น 12.30 กม. จากสัปดาห์ที่แล้ว ↑", "icon-blue"],
+        ["◎", "เป้าหมายที่เลือก", `${intFmt.format(goal)} <small>กม.</small>`, "เปลี่ยนเป้าหมาย →", "icon-orange"],
+        ["🏆", "อันดับปัจจุบัน", `${rank || 15}`, "จากพนักงานทั้งหมด 248 คน", "icon-red"],
+        ["▣", "จำนวนครั้งที่บันทึก", `${appState.runs.length} <small>ครั้ง</small>`, "บันทึกล่าสุด 24 พ.ค. 2566", "icon-blue"]
+      ].map(([icon, label, value, sub, color]) => `
+        <article class="stat-card">
+          <span class="icon-circle ${color}">${icon}</span>
+          <div><p class="stat-label">${label}</p><p class="stat-value">${value}</p><p class="stat-sub">${sub}</p></div>
+        </article>
+      `).join("");
+      document.getElementById("historyRows").innerHTML = appState.runs.map(run => `
+        <tr>
+          <td>${new Date(run.date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}</td>
+          <td><b>${fmt.format(run.distance)}</b></td>
+          <td>✅ อัปโหลดแล้ว</td>
+          <td>${run.note || "-"}</td>
+          <td><b>${fmt.format(run.cumulative)}</b></td>
+        </tr>
+      `).join("");
+    }
+
+    async function lookupEmployee() {
+      const code = document.getElementById("employeeCode").value.trim();
+      if (code.length < 5) return;
+      try {
+        const { employee } = await api("lookupEmployee", { code });
+        document.getElementById("employeeName").value = employee.name;
+        document.getElementById("department").value = employee.department;
+        document.getElementById("employeeFound").style.display = "inline-flex";
+      } catch (err) {
+        document.getElementById("employeeFound").style.display = "none";
+        document.getElementById("employeeName").value = "";
+        document.getElementById("department").value = "";
+      }
+    }
+
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    document.addEventListener("click", event => {
+      const link = event.target.closest("[data-page-link]");
+      if (!link) return;
+      event.preventDefault();
+      setPage(link.dataset.pageLink);
+    });
+
+    document.getElementById("employeeCode").addEventListener("input", lookupEmployee);
+
+    document.getElementById("registerForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      const password = document.getElementById("password").value;
+      const confirmPassword = document.getElementById("confirmPassword").value;
+      if (password !== confirmPassword) return toast("รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน");
+      try {
+        const payload = {
+          code: document.getElementById("employeeCode").value,
+          goal: document.querySelector("input[name='goal']:checked").value,
+          password
+        };
+        const { employee } = await api("register", payload);
+        appState.currentUser = employee;
+        updateAuthUi();
+        renderDashboard();
+        toast("ลงทะเบียนสำเร็จ เข้าสู่หน้าพนักงานแล้ว");
+        setPage("dashboard");
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+
+    document.getElementById("loginForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      try {
+        const { employee, runs } = await api("login", {
+          code: document.getElementById("loginCode").value,
+          password: document.getElementById("loginPassword").value
+        });
+        appState.currentUser = employee;
+        appState.runs = runs || appState.runs;
+        updateAuthUi();
+        renderDashboard();
+        setPage("dashboard");
+        toast("เข้าสู่ระบบสำเร็จ");
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+
+    document.getElementById("runImage").addEventListener("change", event => {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        event.target.value = "";
+        return toast("ขนาดไฟล์ต้องไม่เกิน 5MB");
+      }
+      const preview = document.getElementById("runPreview");
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = "block";
+    });
+
+    document.getElementById("runForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      if (!appState.currentUser) return toast("กรุณาเข้าสู่ระบบก่อนบันทึกผล");
+      const file = document.getElementById("runImage").files[0];
+      try {
+        const imageData = file ? await fileToBase64(file) : "";
+        const { employee, runs } = await api("addRun", {
+          code: appState.currentUser.code,
+          distance: document.getElementById("runDistance").value,
+          date: document.getElementById("runDate").value,
+          note: document.getElementById("runNote").value,
+          imageData
+        });
+        appState.currentUser = employee;
+        appState.runs = runs;
+        renderStats();
+        renderLeaderboard();
+        renderDashboard();
+        event.target.reset();
+        document.getElementById("runPreview").style.display = "none";
+        toast("บันทึกผลการวิ่งเรียบร้อย");
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+
+    document.getElementById("openForgot").addEventListener("click", () => document.getElementById("forgotModal").classList.add("show"));
+    document.getElementById("closeForgot").addEventListener("click", () => document.getElementById("forgotModal").classList.remove("show"));
+    document.getElementById("requestOtp").addEventListener("click", async () => {
+      try {
+        const data = await api("requestOtp", { code: document.getElementById("forgotCode").value });
+        toast(data.message || "ส่ง OTP แล้ว");
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+    document.getElementById("resetPassword").addEventListener("click", async () => {
+      try {
+        await api("resetPassword", {
+          code: document.getElementById("forgotCode").value,
+          otp: document.getElementById("otpCode").value,
+          newPassword: document.getElementById("newPassword").value
+        });
+        document.getElementById("forgotModal").classList.remove("show");
+        toast("เปลี่ยนรหัสผ่านเรียบร้อย");
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      appState.currentUser = null;
+      updateAuthUi();
+      setPage("home");
+      toast("ออกจากระบบแล้ว");
+    });
+
+    document.getElementById("runDate").valueAsDate = new Date();
+    renderDistanceOptions();
+    renderStats();
+    renderLeaderboard();
+    renderDashboard();
+  </script>
+</body>
+</html>
