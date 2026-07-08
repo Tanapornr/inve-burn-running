@@ -958,7 +958,7 @@
 
     async function api(action, payload = {}) {
       if (CONFIG.demoMode) return demoApi(action, payload);
-      if (!CONFIG.apiUrl && action === "lookupEmployee") {
+      if (action === "lookupEmployee") {
         const employee = await lookupEmployeeFromSheet(payload.code || payload.employeeCode);
         return { ok: true, employee };
       }
