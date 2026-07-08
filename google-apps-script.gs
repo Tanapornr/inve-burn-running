@@ -366,6 +366,9 @@ function employeeToDto_(row) {
 
   return {
     code: normalizeCode_(code),
+    prefix,
+    firstName,
+    lastName,
     name,
     department,
     email,

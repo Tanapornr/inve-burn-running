@@ -675,16 +675,25 @@
             <label for="employeeCode">รหัสพนักงาน <span class="req">*</span></label>
             <div class="row-between">
               <input id="employeeCode" name="employeeCode" placeholder="เช่น 018" required />
+              <button class="btn btn-outline" type="button" id="lookupEmployeeBtn" style="min-width:120px">ตกลง</button>
               <span class="inline-ok" id="employeeFound" style="display:none">● พบข้อมูลพนักงาน</span>
             </div>
-            <div class="helper">เมื่อกรอกรหัสพนักงาน ระบบจะแสดงข้อมูลชื่อและแผนกโดยอัตโนมัติ</div>
+            <div class="helper">กรอกรหัสพนักงานแล้วกด “ตกลง” ระบบจะตรวจสอบข้อมูลจาก Google Sheet จริง</div>
             <hr class="divider">
 
             <div class="step-title"><span>2</span><span>ข้อมูลพนักงาน <small class="helper" style="margin-left:8px">ดึงข้อมูลอัตโนมัติ</small></span></div>
             <div class="field-grid">
               <div>
-                <label>ชื่อ-นามสกุล</label>
-                <input id="employeeName" readonly placeholder="รอค้นหาข้อมูล" />
+                <label>คำนำหน้า</label>
+                <input id="employeePrefix" readonly placeholder="รอค้นหาข้อมูล" />
+              </div>
+              <div>
+                <label>ชื่อ</label>
+                <input id="employeeFirstName" readonly placeholder="รอค้นหาข้อมูล" />
+              </div>
+              <div>
+                <label>นามสกุล</label>
+                <input id="employeeLastName" readonly placeholder="รอค้นหาข้อมูล" />
               </div>
               <div>
                 <label>แผนก</label>
@@ -898,15 +907,15 @@
   <script>
     const CONFIG = {
       apiUrl: "", // ใส่ URL Google Apps Script Web App ที่ Deploy แล้ว เช่น https://script.google.com/macros/s/xxxxx/exec
-      demoMode: true
+      demoMode: false,
+      spreadsheetId: "1jntQZj1u9nb2eypIQcfrdnbe3CeVvBLY5jphTo-Q1TQ",
+      employeesSheetName: "Employees"
     };
 
     const distanceChoices = [
-      { value: 50, label: "ระยะเริ่มต้น" },
-      { value: 100, label: "ท้าทายกำลังดี" },
-      { value: 200, label: "ท้าทายตัวเอง" },
-      { value: 300, label: "สายอึดตัวจริง" },
-      { value: 500, label: "สุดยอดนักวิ่ง" }
+      { value: 5, label: "เริ่มต้นเบา ๆ" },
+      { value: 7, label: "ท้าทายกำลังดี" },
+      { value: 10, label: "พิชิตสิบกิโล" }
     ];
 
     const demoEmployees = [
@@ -930,9 +939,10 @@
     ];
 
     let appState = {
-      employees: [...demoEmployees],
+      employees: CONFIG.demoMode ? [...demoEmployees] : [],
       currentUser: null,
-      runs: [...demoRuns]
+      runs: CONFIG.demoMode ? [...demoRuns] : [],
+      selectedEmployee: null
     };
 
     const fmt = new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -946,7 +956,14 @@
     }
 
     async function api(action, payload = {}) {
-      if (CONFIG.demoMode || !CONFIG.apiUrl) return demoApi(action, payload);
+      if (CONFIG.demoMode) return demoApi(action, payload);
+      if (!CONFIG.apiUrl && action === "lookupEmployee") {
+        const employee = await lookupEmployeeFromSheet(payload.code || payload.employeeCode);
+        return { ok: true, employee };
+      }
+      if (!CONFIG.apiUrl) {
+        throw new Error("กรุณาใส่ Google Apps Script Web App URL ใน CONFIG.apiUrl เพื่อบันทึกข้อมูลจริงลง Google Sheet");
+      }
       const res = await fetch(CONFIG.apiUrl, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -955,6 +972,103 @@
       const data = await res.json();
       if (!data.ok) throw new Error(data.message || "เกิดข้อผิดพลาด");
       return data;
+    }
+
+    function normalizeCode(code) {
+      return String(code || "").trim().toUpperCase();
+    }
+
+    function codeMatches(left, right) {
+      const leftCode = normalizeCode(left);
+      const rightCode = normalizeCode(right);
+      if (leftCode === rightCode) return true;
+      if (/^\d+$/.test(leftCode) && /^\d+$/.test(rightCode)) {
+        return Number(leftCode) === Number(rightCode);
+      }
+      return false;
+    }
+
+    async function loadEmployeesFromSheet(force = false) {
+      if (!force && appState.employees.length) return appState.employees;
+      const sheetUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.spreadsheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(CONFIG.employeesSheetName)}`;
+      const json = await loadGoogleVisualizationJson(sheetUrl);
+      const headers = json.table.cols.map(col => String(col.label || "").trim());
+      const rows = (json.table.rows || []).map(row => {
+        const values = (row.c || []).map(cell => cell?.f ?? cell?.v ?? "");
+        return headers.reduce((obj, header, index) => {
+          obj[header] = values[index] || "";
+          return obj;
+        }, {});
+      });
+      appState.employees = rows
+        .filter(row => row["Emp ID"])
+        .map(row => {
+          const prefix = row["Prefix"] || "";
+          const firstName = row["FirstName"] || "";
+          const lastName = row["LastName"] || "";
+          return {
+            code: normalizeCode(row["Emp ID"]),
+            prefix,
+            firstName,
+            lastName,
+            name: [prefix, firstName, lastName].filter(Boolean).join(" "),
+            department: row["Department"] || "",
+            password: "",
+            goal: 0,
+            total: 0
+          };
+        });
+      return appState.employees;
+    }
+
+    function loadGoogleVisualizationJson(url) {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        const previousGoogle = window.google;
+        const timeoutId = window.setTimeout(() => {
+          cleanup();
+          reject(new Error("โหลดข้อมูลพนักงานจาก Google Sheet ไม่สำเร็จ"));
+        }, 12000);
+
+        function cleanup() {
+          window.clearTimeout(timeoutId);
+          script.remove();
+          if (previousGoogle === undefined) {
+            delete window.google;
+          } else {
+            window.google = previousGoogle;
+          }
+        }
+
+        window.google = {
+          visualization: {
+            Query: {
+              setResponse(data) {
+                cleanup();
+                if (data.status !== "ok") {
+                  reject(new Error("Google Sheet ส่งข้อมูลกลับมาไม่สมบูรณ์"));
+                  return;
+                }
+                resolve(data);
+              }
+            }
+          }
+        };
+
+        script.onerror = () => {
+          cleanup();
+          reject(new Error("ไม่สามารถเชื่อมต่อ Google Sheet ได้"));
+        };
+        script.src = `${url}&cacheBust=${Date.now()}`;
+        document.head.appendChild(script);
+      });
+    }
+
+    async function lookupEmployeeFromSheet(code) {
+      const employees = await loadEmployeesFromSheet();
+      const employee = employees.find(item => codeMatches(item.code, code));
+      if (!employee) throw new Error("ไม่พบรหัสพนักงานนี้ กรุณาตรวจสอบและกรอกใหม่");
+      return employee;
     }
 
     async function demoApi(action, payload) {
@@ -1001,13 +1115,13 @@
     function renderStats() {
       const employees = [...appState.employees].sort((a, b) => b.total - a.total);
       const total = employees.reduce((sum, item) => sum + Number(item.total || 0), 0);
-      const top = employees[0];
-      const average = total / employees.length;
+      const top = employees[0] || { name: "-", total: 0 };
+      const average = employees.length ? total / employees.length : 0;
       const stats = [
-        ["👥", "ผู้เข้าร่วมทั้งหมด", `${intFmt.format(1248)} <small>คน</small>`, `เพิ่มขึ้น <span class="up">12%</span> จากสัปดาห์ที่แล้ว ↑`, "icon-orange"],
-        ["👟", "ระยะทางรวมทั้งหมด", `${fmt.format(48732.56)} <small>กม.</small>`, "เทียบเท่าการวิ่ง 1,218 รอบสนามมาตรฐาน ⓘ", "icon-blue"],
-        ["🏆", "ผู้วิ่งสูงสุดวันนี้", top.name, `ระยะทาง <span class="orange-text">${fmt.format(32.45)}</span> กม.`, "icon-red"],
-        ["▥", "ค่าเฉลี่ยต่อคน", `${fmt.format(average)} <small>กม.</small>`, `เพิ่มขึ้น <span class="up">8%</span> จากสัปดาห์ที่แล้ว ↑`, "icon-blue"]
+        ["👥", "พนักงานในระบบ", `${intFmt.format(employees.length)} <small>คน</small>`, "ข้อมูลจาก Google Sheet แท็บ Employees", "icon-orange"],
+        ["👟", "ระยะทางรวมทั้งหมด", `${fmt.format(total)} <small>กม.</small>`, "จะอัปเดตจากชีต Runs เมื่อเชื่อม Apps Script", "icon-blue"],
+        ["🏆", "ผู้วิ่งสูงสุดวันนี้", top.name, `ระยะทาง <span class="orange-text">${fmt.format(top.total || 0)}</span> กม.`, "icon-red"],
+        ["▥", "ค่าเฉลี่ยต่อคน", `${fmt.format(average)} <small>กม.</small>`, "คำนวณจากผลวิ่งที่บันทึกจริง", "icon-blue"]
       ];
       document.getElementById("mainStats").innerHTML = stats.map(([icon, label, value, sub, color]) => `
         <article class="stat-card">
@@ -1015,14 +1129,14 @@
           <div><p class="stat-label">${label}</p><p class="stat-value">${value}</p><p class="stat-sub">${sub}</p></div>
         </article>
       `).join("");
-      document.getElementById("sideParticipants").innerHTML = "1,248 <small>คน</small>";
-      document.getElementById("sideTotalDistance").innerHTML = "48,732.56 <small>กม.</small>";
+      document.getElementById("sideParticipants").innerHTML = `${intFmt.format(employees.length)} <small>คน</small>`;
+      document.getElementById("sideTotalDistance").innerHTML = `${fmt.format(total)} <small>กม.</small>`;
       document.getElementById("sideTodayTop").textContent = top.name;
     }
 
     function renderLeaderboard() {
       const employees = [...appState.employees].sort((a, b) => b.total - a.total);
-      document.getElementById("leaderboardRows").innerHTML = employees.map((item, index) => `
+      document.getElementById("leaderboardRows").innerHTML = employees.length ? employees.map((item, index) => `
         <tr>
           <td><span class="rank ${rankClass(index)}">${index + 1}</span></td>
           <td>${item.code}</td>
@@ -1030,10 +1144,10 @@
           <td>${item.department}</td>
           <td><b class="orange-text">${fmt.format(item.total)}</b></td>
         </tr>
-      `).join("");
+      `).join("") : `<tr><td colspan="5" style="text-align:center">กำลังรอข้อมูลจาก Google Sheet</td></tr>`;
       document.getElementById("todayTopList").innerHTML = employees.slice(0, 5).map((item, index) => `
-        <li><span class="rank ${rankClass(index)}">${index + 1}</span><b>${item.name}</b><b class="orange-text">${fmt.format(index === 0 ? 32.45 : 25.30 - index * 2.9)} กม.</b></li>
-      `).join("");
+        <li><span class="rank ${rankClass(index)}">${index + 1}</span><b>${item.name}</b><b class="orange-text">${fmt.format(item.total || 0)} กม.</b></li>
+      `).join("") || `<li style="display:block;color:#6f7f99">ยังไม่มีข้อมูลอันดับ</li>`;
     }
 
     function renderDistanceOptions() {
@@ -1041,7 +1155,7 @@
         <label class="distance-option ${index === 1 ? "active" : ""}">
           <input type="radio" name="goal" value="${item.value}" ${index === 1 ? "checked" : ""}>
           <span>👟</span>
-          <span><strong>${item.value} กม.</strong><small>${item.label}</small></span>
+          <span><strong>${item.value} KM</strong><small>${item.label}</small></span>
         </label>
       `).join("");
       document.querySelectorAll(".distance-option").forEach(label => {
@@ -1070,8 +1184,8 @@
     }
 
     function renderDashboard() {
-      const user = appState.currentUser || appState.employees[1];
-      const goal = Number(user.goal || 200);
+      const user = appState.currentUser || appState.employees[0] || { code: "-", name: "พนักงาน", department: "-", goal: 10, total: 0 };
+      const goal = Number(user.goal || 10);
       const total = Number(user.total || 0);
       const percent = Math.min(100, Math.round(total / goal * 100));
       const remain = Math.max(0, goal - total);
@@ -1108,18 +1222,31 @@
       `).join("");
     }
 
+    function clearEmployeeFields() {
+      appState.selectedEmployee = null;
+      document.getElementById("employeePrefix").value = "";
+      document.getElementById("employeeFirstName").value = "";
+      document.getElementById("employeeLastName").value = "";
+      document.getElementById("department").value = "";
+      document.getElementById("employeeFound").style.display = "none";
+    }
+
     async function lookupEmployee() {
       const code = document.getElementById("employeeCode").value.trim();
-      if (code.length < 5) return;
+      clearEmployeeFields();
+      if (!code) return toast("กรุณากรอกรหัสพนักงานก่อนกดตกลง");
       try {
         const { employee } = await api("lookupEmployee", { code });
-        document.getElementById("employeeName").value = employee.name;
+        appState.selectedEmployee = employee;
+        document.getElementById("employeePrefix").value = employee.prefix || "";
+        document.getElementById("employeeFirstName").value = employee.firstName || "";
+        document.getElementById("employeeLastName").value = employee.lastName || "";
         document.getElementById("department").value = employee.department;
         document.getElementById("employeeFound").style.display = "inline-flex";
+        toast("พบข้อมูลพนักงานแล้ว");
       } catch (err) {
-        document.getElementById("employeeFound").style.display = "none";
-        document.getElementById("employeeName").value = "";
-        document.getElementById("department").value = "";
+        clearEmployeeFields();
+        toast(err.message);
       }
     }
 
@@ -1139,12 +1266,16 @@
       setPage(link.dataset.pageLink);
     });
 
-    document.getElementById("employeeCode").addEventListener("input", lookupEmployee);
+    document.getElementById("lookupEmployeeBtn").addEventListener("click", lookupEmployee);
+    document.getElementById("employeeCode").addEventListener("input", clearEmployeeFields);
 
     document.getElementById("registerForm").addEventListener("submit", async event => {
       event.preventDefault();
       const password = document.getElementById("password").value;
       const confirmPassword = document.getElementById("confirmPassword").value;
+      if (!appState.selectedEmployee || !codeMatches(appState.selectedEmployee.code, document.getElementById("employeeCode").value)) {
+        return toast("กรุณากรอกรหัสพนักงานและกดตกลงให้พบข้อมูลก่อนสมัคร");
+      }
       if (password !== confirmPassword) return toast("รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน");
       try {
         const payload = {
@@ -1249,11 +1380,22 @@
       toast("ออกจากระบบแล้ว");
     });
 
-    document.getElementById("runDate").valueAsDate = new Date();
-    renderDistanceOptions();
-    renderStats();
-    renderLeaderboard();
-    renderDashboard();
+    async function init() {
+      document.getElementById("runDate").valueAsDate = new Date();
+      renderDistanceOptions();
+      try {
+        if (!CONFIG.demoMode) {
+          await loadEmployeesFromSheet(true);
+        }
+      } catch (err) {
+        toast(err.message);
+      }
+      renderStats();
+      renderLeaderboard();
+      renderDashboard();
+    }
+
+    init();
   </script>
 </body>
 </html>
