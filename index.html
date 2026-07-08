@@ -965,14 +965,35 @@
       if (!CONFIG.apiUrl) {
         throw new Error("ยังไม่ได้เชื่อม URL บันทึกข้อมูล กรุณานำ Google Apps Script ไป Deploy แล้วใส่ Web App URL ใน CONFIG.apiUrl");
       }
-      const res = await fetch(CONFIG.apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action, ...payload })
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.message || "เกิดข้อผิดพลาด");
-      return data;
+      const requestBody = JSON.stringify({ action, ...payload });
+      try {
+        const res = await fetch(CONFIG.apiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: requestBody
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.message || "เกิดข้อผิดพลาด");
+        return data;
+      } catch (err) {
+        if (err instanceof TypeError && action === "register" && appState.selectedEmployee) {
+          await fetch(CONFIG.apiUrl, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: requestBody
+          });
+          return {
+            ok: true,
+            employee: {
+              ...appState.selectedEmployee,
+              goal: Number(payload.goal || 0),
+              total: 0
+            }
+          };
+        }
+        throw err;
+      }
     }
 
     function normalizeCode(code) {
@@ -1321,7 +1342,12 @@
         };
         const { employee } = await api("register", payload);
         appState.currentUser = employee;
+        if (!appState.registeredUsers.some(item => codeMatches(item.code, employee.code))) {
+          appState.registeredUsers = [{ ...employee, total: Number(employee.total || 0) }, ...appState.registeredUsers].slice(0, 10);
+        }
         updateAuthUi();
+        renderStats();
+        renderLeaderboard();
         renderDashboard();
         toast("ลงทะเบียนสำเร็จ เข้าสู่หน้าพนักงานแล้ว");
         setPage("dashboard");
