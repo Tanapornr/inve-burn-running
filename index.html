@@ -1037,6 +1037,7 @@
       spreadsheetId: "1jntQZj1u9nb2eypIQcfrdnbe3CeVvBLY5jphTo-Q1TQ",
       employeesSheetName: "Employees"
     };
+    const LOCAL_REGISTRATIONS_KEY = "inveBurnRegistrations";
 
     const distanceChoices = [
       { value: 5, label: "เริ่มต้นเบา ๆ" },
@@ -1193,6 +1194,35 @@
       return false;
     }
 
+    function getLocalRegistrations() {
+      try {
+        return JSON.parse(localStorage.getItem(LOCAL_REGISTRATIONS_KEY) || "{}") || {};
+      } catch (err) {
+        return {};
+      }
+    }
+
+    async function saveLocalRegistration(employee, password) {
+      if (!employee?.code || !password) return;
+      const registrations = getLocalRegistrations();
+      const code = normalizeCode(employee.code);
+      registrations[code] = {
+        code,
+        name: employee.name || "-",
+        department: employee.department || "-",
+        goal: Number(employee.goal || 0),
+        passwordHash: await sha256(password),
+        registeredAt: new Date().toISOString(),
+        total: Number(employee.total || 0)
+      };
+      localStorage.setItem(LOCAL_REGISTRATIONS_KEY, JSON.stringify(registrations));
+    }
+
+    function findLocalRegistration(code) {
+      const registrations = Object.values(getLocalRegistrations());
+      return registrations.find(user => codeMatches(user.code, code));
+    }
+
     async function loadSheetRows(sheetName) {
       const sheetUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.spreadsheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
       const json = await loadGoogleVisualizationJson(sheetUrl);
@@ -1246,7 +1276,7 @@
         return map;
       }, {});
 
-      appState.allRegisteredUsers = users
+      const sheetRegisteredUsers = users
         .filter(row => row.code)
         .map(row => ({
           code: normalizeCode(row.code),
@@ -1254,8 +1284,21 @@
           department: row.department || "-",
           goal: Number(row.goal || 0),
           total: Number(totals[normalizeCode(row.code)] || 0)
-        }))
-        .sort((a, b) => b.total - a.total);
+        }));
+      const localRegisteredUsers = Object.values(getLocalRegistrations()).map(user => ({
+        code: normalizeCode(user.code),
+        name: user.name || "-",
+        department: user.department || "-",
+        goal: Number(user.goal || 0),
+        total: Number(totals[normalizeCode(user.code)] || user.total || 0)
+      }));
+      localRegisteredUsers.forEach(localUser => {
+        if (!sheetRegisteredUsers.some(user => codeMatches(user.code, localUser.code))) {
+          sheetRegisteredUsers.push(localUser);
+        }
+      });
+
+      appState.allRegisteredUsers = sheetRegisteredUsers.sort((a, b) => b.total - a.total);
       appState.registeredUsers = appState.allRegisteredUsers.slice(0, 10);
       appState.runs = runs;
       return appState.registeredUsers;
@@ -1269,13 +1312,29 @@
         loadSheetRows("Runs").catch(() => [])
       ]);
       const user = users.find(row => codeMatches(row.code, code));
-      if (!user) throw new Error("ยังไม่ได้ลงทะเบียน");
-
       const passwordHash = await sha256(password);
-      if (String(user.passwordHash || "").toLowerCase() !== passwordHash) {
-        throw new Error("รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง");
+      if (!user) {
+        const localUser = findLocalRegistration(code);
+        if (!localUser) throw new Error("ยังไม่ได้ลงทะเบียน");
+        if (String(localUser.passwordHash || "").toLowerCase() !== passwordHash) {
+          throw new Error("รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง");
+        }
+        return buildLoginResultFromUser(localUser, runs);
       }
 
+      if (String(user.passwordHash || "").toLowerCase() !== passwordHash) {
+        const localUser = findLocalRegistration(code);
+        if (!localUser || String(localUser.passwordHash || "").toLowerCase() !== passwordHash) {
+          throw new Error("รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง");
+        }
+        return buildLoginResultFromUser(localUser, runs);
+      }
+
+      return buildLoginResultFromUser(user, runs);
+    }
+
+    function buildLoginResultFromUser(user, runs = []) {
+      const code = normalizeCode(user.code);
       let cumulative = 0;
       const userRuns = runs
         .filter(row => codeMatches(row.code, code))
@@ -1349,6 +1408,8 @@
           console.warn("Refresh registered data failed", err);
         }
       }, 5000);
+
+      await saveLocalRegistration(optimisticEmployee, payload.password);
 
       return {
         ok: true,
@@ -1760,6 +1821,7 @@
         };
         const { employee } = await api("register", payload);
         if (!employee) throw new Error("กรุณาอัปเดตและ Deploy Google Apps Script เวอร์ชันล่าสุดก่อนสมัคร");
+        await saveLocalRegistration(employee, password);
         appState.currentUser = employee;
         if (appState.allRegisteredUsers.some(item => codeMatches(item.code, employee.code))) {
           appState.allRegisteredUsers = appState.allRegisteredUsers.map(item => codeMatches(item.code, employee.code) ? { ...item, ...employee } : item);
