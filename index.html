@@ -1203,6 +1203,14 @@
     async function api(action, payload = {}) {
       if (CONFIG.demoMode) return demoApi(action, payload);
       if (action === "lookupEmployee") {
+        if (CONFIG.apiUrl) {
+          try {
+            return await apiJsonp(action, payload);
+          } catch (err) {
+            const employee = await lookupEmployeeFromSheet(payload.code || payload.employeeCode);
+            return { ok: true, employee };
+          }
+        }
         const employee = await lookupEmployeeFromSheet(payload.code || payload.employeeCode);
         return { ok: true, employee };
       }
@@ -1263,6 +1271,7 @@
         const url = new URL(CONFIG.apiUrl);
         url.searchParams.set("action", action);
         url.searchParams.set("callback", callbackName);
+        url.searchParams.set("_", Date.now().toString());
         Object.entries(payload).forEach(([key, value]) => url.searchParams.set(key, value ?? ""));
 
         const script = document.createElement("script");
@@ -1446,6 +1455,15 @@
 
     async function loadRegisteredData() {
       return loadRegisteredDataFromSheet();
+    }
+
+    async function refreshRegisteredDataSafely() {
+      try {
+        await loadRegisteredData();
+        return true;
+      } catch (err) {
+        return false;
+      }
     }
 
     async function loadRegisteredDataFromSheet() {
@@ -1994,8 +2012,8 @@
       clearEmployeeFields();
       if (!code) return toast("กรุณากรอกรหัสพนักงานก่อนกดตกลง");
       try {
-        await loadRegisteredData();
-        if (findRegisteredUser(code)) {
+        const registeredDataLoaded = await refreshRegisteredDataSafely();
+        if (registeredDataLoaded && findRegisteredUser(code)) {
           return toast("บัญชีนี้มีอยู่แล้ว กรุณาเข้าสู่ระบบ");
         }
         const { employee } = await api("lookupEmployee", { code });
@@ -2043,8 +2061,8 @@
       }
       if (password !== confirmPassword) return toast("รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน");
       try {
-        await loadRegisteredData();
-        if (findRegisteredUser(document.getElementById("employeeCode").value)) {
+        const registeredDataLoaded = await refreshRegisteredDataSafely();
+        if (registeredDataLoaded && findRegisteredUser(document.getElementById("employeeCode").value)) {
           return toast("บัญชีนี้มีอยู่แล้ว กรุณาเข้าสู่ระบบ");
         }
         const payload = {
