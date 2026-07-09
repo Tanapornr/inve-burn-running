@@ -65,6 +65,13 @@
       min-width: 260px;
     }
 
+    .brand-logo {
+      width: 58px;
+      height: 58px;
+      object-fit: contain;
+      flex: 0 0 auto;
+    }
+
     .runner-mark {
       width: 58px;
       height: 58px;
@@ -602,7 +609,7 @@
   <header class="topbar">
     <div class="container nav">
       <a class="brand" href="#home" data-page-link="home" aria-label="INVE BURN RUNNING 2026">
-        <span class="runner-mark"></span>
+        <img class="brand-logo" src="https://img1.pic.in.th/images/306731248_377740387906627_272750946946146413_n.png" alt="INVE logo">
         <span class="brand-text">INVE <span>BURN</span><small>RUNNING 2026</small></span>
       </a>
       <nav class="menu">
@@ -941,7 +948,7 @@
       <div class="admin-layout">
         <aside class="admin-sidebar">
           <a class="brand" href="#admin" data-page-link="admin">
-            <span class="runner-mark"></span>
+            <img class="brand-logo" src="https://img1.pic.in.th/images/306731248_377740387906627_272750946946146413_n.png" alt="INVE logo">
             <span class="brand-text" style="font-size:23px">INVE <span>BURN</span><small style="font-size:20px">RUNNING 2026</small></span>
           </a>
           <div class="admin-nav">
@@ -1620,6 +1627,10 @@
       }, {});
     }
 
+    function findRegisteredUser(code) {
+      return appState.allRegisteredUsers.find(user => codeMatches(user.code, code));
+    }
+
     function upsertRegisteredUser(employee) {
       if (!employee?.code) return;
       const normalizedEmployee = {
@@ -1869,6 +1880,10 @@
       clearEmployeeFields();
       if (!code) return toast("กรุณากรอกรหัสพนักงานก่อนกดตกลง");
       try {
+        await loadRegisteredData();
+        if (findRegisteredUser(code)) {
+          return toast("บัญชีนี้มีอยู่แล้ว กรุณาเข้าสู่ระบบ");
+        }
         const { employee } = await api("lookupEmployee", { code });
         appState.selectedEmployee = employee;
         document.getElementById("employeePrefix").value = employee.prefix || "";
@@ -1911,6 +1926,10 @@
       }
       if (password !== confirmPassword) return toast("รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน");
       try {
+        await loadRegisteredData();
+        if (findRegisteredUser(document.getElementById("employeeCode").value)) {
+          return toast("บัญชีนี้มีอยู่แล้ว กรุณาเข้าสู่ระบบ");
+        }
         const payload = {
           code: document.getElementById("employeeCode").value,
           goal: document.querySelector("input[name='goal']:checked").value,
