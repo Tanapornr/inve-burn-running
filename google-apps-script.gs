@@ -31,6 +31,7 @@ function doPost(e) {
 function routeAction_(body) {
   try {
     const handlers = {
+      listEmployees,
       lookupEmployee,
       register,
       login,
@@ -57,6 +58,13 @@ function lookupEmployee(body) {
   const employee = findEmployee_(code);
   if (!employee) throw new Error('ไม่พบรหัสพนักงานนี้');
   return { ok: true, employee: employeeToDto_(employee) };
+}
+
+function listEmployees() {
+  const employees = sheetToObjects_(getSheet_(CONFIG.EMPLOYEES_SHEET))
+    .map(employeeToDto_)
+    .filter(employee => employee.code && String(employee.status || 'active').toLowerCase() !== 'inactive');
+  return { ok: true, employees };
 }
 
 function register(body) {

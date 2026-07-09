@@ -1228,7 +1228,7 @@
         try {
           return await apiJsonp(action, payload);
         } catch (err) {
-          throw new Error(err.message || "สมัครไม่สำเร็จ กรุณาตรวจสอบ Google Apps Script และลองใหม่");
+          return registerViaPostAndSync(payload, err);
         }
       }
       if (["getDashboard"].includes(action)) {
@@ -1330,10 +1330,48 @@
       let latestDashboard = null;
       for (let attempt = 0; attempt < 6; attempt += 1) {
         await sleep(attempt === 0 ? 1200 : 900);
-        latestDashboard = await apiJsonp("getDashboard", { code });
-        if ((latestDashboard.runs || []).length > beforeCount) return latestDashboard;
+        try {
+          latestDashboard = await apiJsonp("getDashboard", { code });
+          if ((latestDashboard.runs || []).length > beforeCount) return latestDashboard;
+        } catch (err) {
+          console.warn("Run sync retry failed", err);
+        }
       }
       return latestDashboard;
+    }
+
+    async function waitForRegisteredUserSync(code, beforeHadUser) {
+      let latestDashboard = null;
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        await sleep(attempt === 0 ? 1200 : 900);
+        try {
+          latestDashboard = await apiJsonp("getDashboard", {});
+          applyRegisteredData(latestDashboard.leaderboard || [], latestDashboard.runs || []);
+          const syncedUser = findRegisteredUser(code);
+          if (syncedUser && !beforeHadUser) return syncedUser;
+        } catch (err) {
+          console.warn("Registration sync retry failed", err);
+        }
+      }
+      return findRegisteredUser(code);
+    }
+
+    async function registerViaPostAndSync(payload, originalError) {
+      const code = normalizeCode(payload.code || payload.employeeCode);
+      await refreshRegisteredDataSafely();
+      const beforeHadUser = Boolean(findRegisteredUser(code));
+      if (beforeHadUser) throw new Error("บัญชีนี้มีอยู่แล้ว กรุณาเข้าสู่ระบบ");
+
+      await fetch(CONFIG.apiUrl, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "register", ...payload })
+      });
+
+      const syncedUser = await waitForRegisteredUserSync(code, beforeHadUser);
+      if (!syncedUser) throw new Error(originalError?.message || "สมัครไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      return { ok: true, employee: { ...syncedUser, total: Number(syncedUser.total || 0) } };
     }
 
     function loadGoogleVisualizationJson(url) {
@@ -1424,6 +1462,20 @@
 
     async function loadEmployeesFromSheet(force = false) {
       if (!force && appState.employees.length) return appState.employees;
+      if (!CONFIG.demoMode && CONFIG.apiUrl) {
+        try {
+          const data = await apiJsonp("listEmployees", {});
+          appState.employees = (data.employees || []).map(employee => ({
+            ...employee,
+            code: normalizeCode(employee.code),
+            goal: normalizeGoalDistance(employee.goal || 10),
+            total: Number(employee.total || 0)
+          }));
+          if (appState.employees.length) return appState.employees;
+        } catch (err) {
+          console.warn("Load employees from API failed", err);
+        }
+      }
       const rows = await loadSheetRows(CONFIG.employeesSheetName);
       appState.employees = rows
         .filter(row => row["Emp ID"])
@@ -1993,7 +2045,6 @@
       if (CONFIG.demoMode || refreshInFlight) return;
       refreshInFlight = true;
       try {
-        await loadEmployeesFromSheet(true);
         await loadRegisteredData();
         renderStats();
         renderLeaderboard();
@@ -2001,6 +2052,7 @@
           updateAuthUi();
           renderDashboard();
         }
+        if (appState.isAdmin) await loadEmployeesFromSheet(true).catch(err => console.warn("Employee refresh failed", err));
         renderAdmin();
       } catch (err) {
         console.warn("Realtime refresh failed", err);
@@ -2320,7 +2372,6 @@
       updateRegistrationWindowUi();
       try {
         if (!CONFIG.demoMode) {
-          await loadEmployeesFromSheet(true);
           await loadRegisteredData();
         } else {
           appState.allRegisteredUsers = [...appState.employees];
@@ -2331,7 +2382,7 @@
         appState.allRegisteredUsers = [];
         appState.registeredUsers = [];
         clearCurrentUserSession();
-        toast(err.message);
+        console.warn("Initial data load failed", err);
       }
       renderStats();
       renderLeaderboard();
