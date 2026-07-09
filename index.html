@@ -710,7 +710,7 @@
             <h2>📋 กติกา / วิธีการเข้าร่วม</h2>
             <ul class="check-list">
               <li>กิจกรรมนี้สำหรับพนักงาน INVE ทุกคน</li>
-              <li>เปิดรับสมัครลงทะเบียน วันที่ 13 - 31 กรกฎาคม 2569</li>
+              <li>เปิดรับสมัครลงทะเบียน วันที่ 9 - 31 กรกฎาคม 2569</li>
               <li>ระบบจะปิดรับสมัครอัตโนมัติเมื่อพ้นช่วงเวลารับสมัคร</li>
               <li>สะสมระยะการวิ่ง ตั้งแต่วันที่ 1 สิงหาคม - 15 สิงหาคม 2569</li>
               <li>ระยะทางมีให้เลือก 10 กิโลเมตร และ 20 กิโลเมตร</li>
@@ -731,7 +731,7 @@
             <h2>📋 กติกา / วิธีการเข้าร่วม</h2>
             <ul class="check-list">
               <li>กิจกรรมนี้สำหรับพนักงาน INVE ทุกคน</li>
-              <li>เปิดรับสมัครลงทะเบียน วันที่ 13 - 31 กรกฎาคม 2569</li>
+              <li>เปิดรับสมัครลงทะเบียน วันที่ 9 - 31 กรกฎาคม 2569</li>
               <li>ระบบจะปิดรับสมัครอัตโนมัติเมื่อพ้นช่วงเวลารับสมัคร</li>
               <li>สะสมระยะการวิ่ง ตั้งแต่วันที่ 1 สิงหาคม - 15 สิงหาคม 2569</li>
               <li>ระยะทางมีให้เลือก 10 กิโลเมตร และ 20 กิโลเมตร</li>
@@ -1143,7 +1143,7 @@
     };
     const CURRENT_USER_KEY = "inveBurnCurrentUser";
     const GOAL_DISTANCES = [10, 20];
-    const REGISTRATION_START = new Date("2026-07-13T00:00:00+07:00");
+    const REGISTRATION_START = new Date("2026-07-09T00:00:00+07:00");
     const REGISTRATION_END = new Date("2026-07-31T23:59:59+07:00");
 
     const distanceChoices = [
@@ -1734,7 +1734,7 @@
       if (!el) return;
       el.textContent = isRegistrationOpen()
         ? "เปิดรับสมัครถึงวันที่ 31 กรกฎาคม 2569"
-        : (new Date() > REGISTRATION_END ? "ปิดการรับสมัครลงทะเบียนแล้ว" : "ยังไม่อยู่ในช่วงรับสมัคร ระบบเปิดรับสมัครวันที่ 13 - 31 กรกฎาคม 2569");
+        : (new Date() > REGISTRATION_END ? "ปิดการรับสมัครลงทะเบียนแล้ว" : "ยังไม่อยู่ในช่วงรับสมัคร ระบบเปิดรับสมัครวันที่ 9 - 31 กรกฎาคม 2569");
     }
 
     function upsertRegisteredUser(employee) {
@@ -2034,7 +2034,7 @@
     document.getElementById("registerForm").addEventListener("submit", async event => {
       event.preventDefault();
       if (!isRegistrationOpen()) {
-        return toast(new Date() > REGISTRATION_END ? "ปิดการรับสมัครลงทะเบียนแล้ว" : "ยังไม่อยู่ในช่วงรับสมัคร เปิดรับสมัครวันที่ 13 - 31 กรกฎาคม 2569");
+        return toast(new Date() > REGISTRATION_END ? "ปิดการรับสมัครลงทะเบียนแล้ว" : "ยังไม่อยู่ในช่วงรับสมัคร เปิดรับสมัครวันที่ 9 - 31 กรกฎาคม 2569");
       }
       const password = document.getElementById("password").value;
       const confirmPassword = document.getElementById("confirmPassword").value;
