@@ -1100,7 +1100,14 @@
       if (!CONFIG.apiUrl) {
         throw new Error("ยังไม่ได้เชื่อม URL บันทึกข้อมูล กรุณานำ Google Apps Script ไป Deploy แล้วใส่ Web App URL ใน CONFIG.apiUrl");
       }
-      if (["register", "getDashboard"].includes(action)) {
+      if (action === "register") {
+        try {
+          return await apiJsonp(action, payload);
+        } catch (err) {
+          return registerWithFallback(payload);
+        }
+      }
+      if (["getDashboard"].includes(action)) {
         return apiJsonp(action, payload);
       }
       const requestBody = JSON.stringify({ action, ...payload });
@@ -1297,6 +1304,39 @@
           total: cumulative
         },
         runs: userRuns
+      };
+    }
+
+    async function registerWithFallback(payload = {}) {
+      if (!appState.selectedEmployee) {
+        throw new Error("กรุณากรอกรหัสพนักงานและกดตกลงให้พบข้อมูลก่อนสมัคร");
+      }
+
+      await fetch(CONFIG.apiUrl, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "register", ...payload })
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 1800));
+      const code = normalizeCode(payload.code || payload.employeeCode);
+      const users = await loadSheetRows("Users");
+      const savedUser = users.find(row => codeMatches(row.code, code));
+      if (!savedUser) {
+        throw new Error("สมัครไม่สำเร็จ กรุณาตรวจสอบว่า Google Apps Script เปิดสิทธิ์ Anyone และ Deploy เป็นเวอร์ชันล่าสุด");
+      }
+
+      return {
+        ok: true,
+        employee: {
+          ...appState.selectedEmployee,
+          code: normalizeCode(savedUser.code || appState.selectedEmployee.code),
+          name: savedUser.name || appState.selectedEmployee.name,
+          department: savedUser.department || appState.selectedEmployee.department,
+          goal: Number(savedUser.goal || payload.goal || 0),
+          total: 0
+        }
       };
     }
 
@@ -1691,7 +1731,9 @@
         const { employee } = await api("register", payload);
         if (!employee) throw new Error("กรุณาอัปเดตและ Deploy Google Apps Script เวอร์ชันล่าสุดก่อนสมัคร");
         appState.currentUser = employee;
-        if (!appState.allRegisteredUsers.some(item => codeMatches(item.code, employee.code))) {
+        if (appState.allRegisteredUsers.some(item => codeMatches(item.code, employee.code))) {
+          appState.allRegisteredUsers = appState.allRegisteredUsers.map(item => codeMatches(item.code, employee.code) ? { ...item, ...employee } : item);
+        } else {
           appState.allRegisteredUsers = [{ ...employee, total: Number(employee.total || 0) }, ...appState.allRegisteredUsers];
         }
         appState.registeredUsers = [...appState.allRegisteredUsers].sort((a, b) => b.total - a.total).slice(0, 10);
