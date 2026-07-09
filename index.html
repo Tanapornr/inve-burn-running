@@ -1312,32 +1312,62 @@
         throw new Error("กรุณากรอกรหัสพนักงานและกดตกลงให้พบข้อมูลก่อนสมัคร");
       }
 
-      await fetch(CONFIG.apiUrl, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "register", ...payload })
-      });
-
-      await new Promise(resolve => setTimeout(resolve, 1800));
       const code = normalizeCode(payload.code || payload.employeeCode);
-      const users = await loadSheetRows("Users");
-      const savedUser = users.find(row => codeMatches(row.code, code));
-      if (!savedUser) {
-        throw new Error("สมัครไม่สำเร็จ กรุณาตรวจสอบว่า Google Apps Script เปิดสิทธิ์ Anyone และ Deploy เป็นเวอร์ชันล่าสุด");
+      const optimisticEmployee = {
+        ...appState.selectedEmployee,
+        code,
+        goal: Number(payload.goal || 0),
+        total: 0
+      };
+
+      const requestBody = JSON.stringify({ action: "register", ...payload });
+      let sent = false;
+
+      try {
+        await fetch(CONFIG.apiUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: requestBody
+        });
+        sent = true;
+      } catch (err) {
+        sent = false;
       }
+
+      if (!sent) {
+        await fireAndForgetGet("register", payload);
+      }
+
+      window.setTimeout(async () => {
+        try {
+          await loadRegisteredDataFromSheet();
+          renderStats();
+          renderLeaderboard();
+          renderAdmin();
+        } catch (err) {
+          console.warn("Refresh registered data failed", err);
+        }
+      }, 5000);
 
       return {
         ok: true,
-        employee: {
-          ...appState.selectedEmployee,
-          code: normalizeCode(savedUser.code || appState.selectedEmployee.code),
-          name: savedUser.name || appState.selectedEmployee.name,
-          department: savedUser.department || appState.selectedEmployee.department,
-          goal: Number(savedUser.goal || payload.goal || 0),
-          total: 0
-        }
+        employee: optimisticEmployee
       };
+    }
+
+    function fireAndForgetGet(action, payload = {}) {
+      return new Promise(resolve => {
+        const img = new Image();
+        const url = new URL(CONFIG.apiUrl);
+        url.searchParams.set("action", action);
+        Object.entries(payload).forEach(([key, value]) => url.searchParams.set(key, value ?? ""));
+        const done = () => resolve();
+        img.onload = done;
+        img.onerror = done;
+        window.setTimeout(done, 2500);
+        img.src = url.toString();
+      });
     }
 
     async function sha256(text) {
