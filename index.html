@@ -1406,16 +1406,6 @@
     }
 
     async function loadRegisteredData() {
-      if (CONFIG.apiUrl) {
-        try {
-          const data = await apiJsonp("getDashboard", appState.currentUser ? { code: appState.currentUser.code } : {});
-          if (Array.isArray(data.leaderboard)) {
-            return applyRegisteredData(data.leaderboard, data.runs || []);
-          }
-        } catch (err) {
-          console.warn("Live API refresh failed, using sheet fallback", err);
-        }
-      }
       return loadRegisteredDataFromSheet();
     }
 
@@ -1859,7 +1849,10 @@
     }
 
     function setPage(page) {
-      if (page === "dashboard" && !appState.currentUser) {
+      if (page === "dashboard" && (!appState.currentUser || !findRegisteredUser(appState.currentUser.code))) {
+        appState.currentUser = null;
+        clearCurrentUserSession();
+        updateAuthUi();
         toast("กรุณาเข้าสู่ระบบก่อนใช้งาน");
         page = "login";
       }
@@ -2082,10 +2075,12 @@
 
     document.getElementById("runForm").addEventListener("submit", async event => {
       event.preventDefault();
-      if (!appState.currentUser) {
-        restoreCurrentUserSession();
+      if (!appState.currentUser || !findRegisteredUser(appState.currentUser.code)) {
+        appState.currentUser = null;
+        clearCurrentUserSession();
+        updateAuthUi();
+        return toast("กรุณาเข้าสู่ระบบก่อนบันทึกผล");
       }
-      if (!appState.currentUser) return toast("กรุณาเข้าสู่ระบบก่อนบันทึกผล");
       const imageInput = document.getElementById("runImage");
       if (imageInput.files.length > 1) return toast("อัปโหลดได้ครั้งละ 1 รูปเท่านั้น");
       const file = imageInput.files[0];
@@ -2197,6 +2192,10 @@
           appState.registeredUsers = [...appState.employees].slice(0, 10);
         }
       } catch (err) {
+        appState.currentUser = null;
+        appState.allRegisteredUsers = [];
+        appState.registeredUsers = [];
+        clearCurrentUserSession();
         toast(err.message);
       }
       renderStats();
