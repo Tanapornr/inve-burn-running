@@ -1139,7 +1139,6 @@
       spreadsheetId: "1jntQZj1u9nb2eypIQcfrdnbe3CeVvBLY5jphTo-Q1TQ",
       employeesSheetName: "Employees"
     };
-    const LOCAL_REGISTRATIONS_KEY = "inveBurnRegistrations";
     const CURRENT_USER_KEY = "inveBurnCurrentUser";
     const GOAL_DISTANCES = [10, 20];
     const REGISTRATION_START = new Date("2026-07-13T00:00:00+07:00");
@@ -1219,7 +1218,7 @@
         try {
           return await apiJsonp(action, payload);
         } catch (err) {
-          return registerWithFallback(payload);
+          throw new Error(err.message || "สมัครไม่สำเร็จ กรุณาตรวจสอบ Google Apps Script และลองใหม่");
         }
       }
       if (["getDashboard"].includes(action)) {
@@ -1308,35 +1307,6 @@
       return false;
     }
 
-    function getLocalRegistrations() {
-      try {
-        return JSON.parse(localStorage.getItem(LOCAL_REGISTRATIONS_KEY) || "{}") || {};
-      } catch (err) {
-        return {};
-      }
-    }
-
-    async function saveLocalRegistration(employee, password) {
-      if (!employee?.code || !password) return;
-      const registrations = getLocalRegistrations();
-      const code = normalizeCode(employee.code);
-      registrations[code] = {
-        code,
-        name: employee.name || "-",
-        department: employee.department || "-",
-        goal: normalizeGoalDistance(employee.goal),
-        passwordHash: await sha256(password),
-        registeredAt: new Date().toISOString(),
-        total: Number(employee.total || 0)
-      };
-      localStorage.setItem(LOCAL_REGISTRATIONS_KEY, JSON.stringify(registrations));
-    }
-
-    function findLocalRegistration(code) {
-      const registrations = Object.values(getLocalRegistrations());
-      return registrations.find(user => codeMatches(user.code, code));
-    }
-
     function saveCurrentUserSession(user) {
       if (!user?.code) return;
       localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
@@ -1413,23 +1383,18 @@
           total: Number(row.total ?? totals[normalizeCode(row.code)] ?? 0)
         }));
 
-      Object.values(getLocalRegistrations()).forEach(localUser => {
-        if (!registered.some(user => codeMatches(user.code, localUser.code))) {
-          registered.push({
-            code: normalizeCode(localUser.code),
-            name: localUser.name || "-",
-            department: localUser.department || "-",
-            goal: normalizeGoalDistance(localUser.goal),
-            total: Number(totals[normalizeCode(localUser.code)] || localUser.total || 0)
-          });
-        }
-      });
-
       appState.allRegisteredUsers = registered.sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
       appState.registeredUsers = appState.allRegisteredUsers.slice(0, 10);
       appState.allRuns = runs;
       if (appState.currentUser) {
-        const latestUser = appState.allRegisteredUsers.find(user => codeMatches(user.code, appState.currentUser.code)) || appState.currentUser;
+        const latestUser = appState.allRegisteredUsers.find(user => codeMatches(user.code, appState.currentUser.code));
+        if (!latestUser) {
+          appState.currentUser = null;
+          appState.runs = runs;
+          clearCurrentUserSession();
+          updateAuthUi();
+          return appState.registeredUsers;
+        }
         const refreshed = buildLoginResultFromUser({ ...appState.currentUser, ...latestUser }, runs);
         appState.currentUser = refreshed.employee;
         appState.runs = refreshed.runs;
@@ -1475,20 +1440,11 @@
       const user = users.find(row => codeMatches(row.code, code));
       const passwordHash = await sha256(password);
       if (!user) {
-        const localUser = findLocalRegistration(code);
-        if (!localUser) throw new Error("ยังไม่ได้ลงทะเบียน");
-        if (String(localUser.passwordHash || "").toLowerCase() !== passwordHash) {
-          throw new Error("รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง");
-        }
-        return buildLoginResultFromUser(localUser, runs);
+        throw new Error("ยังไม่ได้ลงทะเบียน");
       }
 
       if (String(user.passwordHash || "").toLowerCase() !== passwordHash) {
-        const localUser = findLocalRegistration(code);
-        if (!localUser || String(localUser.passwordHash || "").toLowerCase() !== passwordHash) {
-          throw new Error("รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง");
-        }
-        return buildLoginResultFromUser(localUser, runs);
+        throw new Error("รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง");
       }
 
       return buildLoginResultFromUser(user, runs);
@@ -1525,120 +1481,6 @@
         },
         runs: userRuns
       };
-    }
-
-    async function registerWithFallback(payload = {}) {
-      if (!appState.selectedEmployee) {
-        throw new Error("กรุณากรอกรหัสพนักงานและกดตกลงให้พบข้อมูลก่อนสมัคร");
-      }
-
-      const code = normalizeCode(payload.code || payload.employeeCode);
-      const optimisticEmployee = {
-        ...appState.selectedEmployee,
-        code,
-        goal: normalizeGoalDistance(payload.goal),
-        total: 0
-      };
-
-      const requestBody = JSON.stringify({ action: "register", ...payload });
-      let sent = false;
-
-      try {
-        await fetch(CONFIG.apiUrl, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: requestBody
-        });
-        sent = true;
-      } catch (err) {
-        sent = false;
-      }
-
-      if (!sent) {
-        await fireAndForgetGet("register", payload);
-      }
-
-      window.setTimeout(async () => {
-        try {
-          await loadRegisteredData();
-          renderStats();
-          renderLeaderboard();
-          renderAdmin();
-        } catch (err) {
-          console.warn("Refresh registered data failed", err);
-        }
-      }, 5000);
-
-      await saveLocalRegistration(optimisticEmployee, payload.password);
-
-      return {
-        ok: true,
-        employee: optimisticEmployee
-      };
-    }
-
-    function fireAndForgetGet(action, payload = {}) {
-      return new Promise(resolve => {
-        const img = new Image();
-        const url = new URL(CONFIG.apiUrl);
-        url.searchParams.set("action", action);
-        Object.entries(payload).forEach(([key, value]) => url.searchParams.set(key, value ?? ""));
-        const done = () => resolve();
-        img.onload = done;
-        img.onerror = done;
-        window.setTimeout(done, 2500);
-        img.src = url.toString();
-      });
-    }
-
-    async function sha256(text) {
-      const bytes = new TextEncoder().encode(String(text));
-      const hashBuffer = await crypto.subtle.digest("SHA-256", bytes);
-      return [...new Uint8Array(hashBuffer)].map(byte => byte.toString(16).padStart(2, "0")).join("");
-    }
-
-    function loadGoogleVisualizationJson(url) {
-      return new Promise((resolve, reject) => {
-        const script = document.createElement("script");
-        const previousGoogle = window.google;
-        const timeoutId = window.setTimeout(() => {
-          cleanup();
-          reject(new Error("โหลดข้อมูลพนักงานไม่สำเร็จ"));
-        }, 12000);
-
-        function cleanup() {
-          window.clearTimeout(timeoutId);
-          script.remove();
-          if (previousGoogle === undefined) {
-            delete window.google;
-          } else {
-            window.google = previousGoogle;
-          }
-        }
-
-        window.google = {
-          visualization: {
-            Query: {
-              setResponse(data) {
-                cleanup();
-                if (data.status !== "ok") {
-                  reject(new Error("ระบบส่งข้อมูลกลับมาไม่สมบูรณ์"));
-                  return;
-                }
-                resolve(data);
-              }
-            }
-          }
-        };
-
-        script.onerror = () => {
-          cleanup();
-          reject(new Error("ไม่สามารถเชื่อมต่อข้อมูลได้"));
-        };
-        script.src = `${url}&cacheBust=${Date.now()}`;
-        document.head.appendChild(script);
-      });
     }
 
     async function lookupEmployeeFromSheet(code) {
@@ -2180,7 +2022,6 @@
         };
         const { employee } = await api("register", payload);
         if (!employee) throw new Error("ระบบข้อมูลยังไม่พร้อม กรุณาลองสมัครใหม่อีกครั้ง");
-        await saveLocalRegistration(employee, password);
         appState.currentUser = employee;
         saveCurrentUserSession(employee);
         upsertRegisteredUser(employee);
