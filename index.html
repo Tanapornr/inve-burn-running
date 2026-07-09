@@ -33,10 +33,12 @@
       background:
         radial-gradient(circle at 0 10%, rgba(255, 114, 13, .12), transparent 30%),
         linear-gradient(180deg, #fff 0%, #f8fbff 56%, #fff 100%);
+      overflow-x: hidden;
     }
 
     button, input, select, textarea { font: inherit; }
     button { cursor: pointer; border: 0; }
+    img, table { max-width: 100%; }
     a { color: inherit; text-decoration: none; }
     .container { width: min(1690px, calc(100% - 96px)); margin: 0 auto; }
 
@@ -368,6 +370,8 @@
     .footer-inner { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
     .footer strong { display: block; }
     .footer small, .footer a { color: rgba(255,255,255,.86); }
+    .footer-contact { align-items: flex-start; padding: 18px 0; }
+    .footer-info { display: grid; gap: 6px; color: rgba(255,255,255,.88); max-width: 680px; line-height: 1.55; }
     .social { display: flex; gap: 13px; }
     .social span { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.14); font-weight: 900; }
     .social span:nth-child(2) { background: #20d642; }
@@ -598,7 +602,8 @@
       .home-layout, .form-shell, .login-layout, .dashboard-grid { grid-template-columns: 1fr; }
       .runner-scene { min-height: 210px; }
       .distance-options { grid-template-columns: repeat(2, 1fr); }
-      .menu { display: none; }
+      .menu { order: 3; width: 100%; overflow-x: auto; justify-content: center; gap: 18px; }
+      .menu a { padding: 14px 2px 10px; white-space: nowrap; }
       .admin-layout { grid-template-columns: 1fr; }
       .admin-sidebar { position: static; }
       .admin-card-grid, .goal-blocks, .help-grid { grid-template-columns: 1fr 1fr; }
@@ -608,9 +613,11 @@
       .period-tabs { width: 100%; }
       .period-tabs button { flex: 1; padding: 10px 8px; }
       .ranking-podium { grid-template-columns: 1fr; }
+      .footer-inner { display: grid; grid-template-columns: 1fr; }
     }
 
     @media (max-width: 700px) {
+      .container { width: calc(100% - 24px); }
       .topbar { height: auto; padding: 12px 0; }
       .brand { min-width: 0; }
       .brand-logo { width: 58px; height: 54px; }
@@ -624,11 +631,15 @@
       .stats-grid { grid-template-columns: 1fr; }
       .form-shell, .login-card { padding: 24px 18px; }
       .distance-options { grid-template-columns: 1fr; }
-      th:nth-child(4), td:nth-child(4) { display: none; }
       .footer-inner { flex-direction: column; align-items: flex-start; padding: 18px 0; }
       .admin-main { padding: 22px 16px 90px; }
       .admin-card-grid, .goal-blocks, .help-grid { grid-template-columns: 1fr; }
       .home-goal-rankings { padding: 12px; }
+      .panel-body { padding: 20px 16px; }
+      .stat-card { padding: 18px; }
+      .hero { min-height: 260px; }
+      .hero h1 { font-size: clamp(44px, 16vw, 72px); }
+      table { min-width: 560px; }
     }
   </style>
 </head>
@@ -643,7 +654,6 @@
         <a href="#home" class="active" data-page-link="home">⌂ หน้าแรก</a>
         <a href="#ranking" data-page-link="ranking">อันดับ</a>
         <a href="#about" data-page-link="about">เกี่ยวกับกิจกรรม</a>
-        <a href="#contact" data-page-link="contact">ติดต่อเรา</a>
         <a href="#admin-login" data-page-link="adminLogin">ผู้ดูแลระบบ</a>
       </nav>
       <div class="nav-actions" id="guestActions">
@@ -761,35 +771,6 @@
             <div class="ranking-goal-grid" id="rankingPageGoalBlocks"></div>
           </section>
         </div>
-      </div>
-    </section>
-
-    <section class="page" id="contactPage">
-      <div class="hero contact-hero">
-        <div class="skyline"></div>
-        <div class="container hero-content">
-          <div>
-            <h1 style="font-style:normal">ติดต่อเรา</h1>
-            <p>สอบถามข้อมูลกิจกรรม INVE BURN RUNNING 2026</p>
-          </div>
-        </div>
-      </div>
-      <div class="container section-space contact-layout">
-        <section class="panel">
-          <div class="panel-body">
-            <div class="contact-card"><span class="icon-circle icon-blue">📍</span><div><h3>ที่อยู่</h3><p>บริษัท อินเว จำกัด<br>333 ถนนวิภาวดีรังสิต แขวงจอมพล เขตจตุจักร กรุงเทพมหานคร 10900</p></div></div>
-            <div class="contact-card"><span class="icon-circle icon-orange">☎</span><div><h3>เบอร์โทรศัพท์</h3><p>02-273-8888 ต่อ 12345</p></div></div>
-            <div class="contact-card"><span class="icon-circle icon-blue">✉</span><div><h3>อีเมล</h3><p>info@inveburnrunning.com</p></div></div>
-          </div>
-        </section>
-        <aside class="panel">
-          <div class="panel-body">
-            <h2>ต้องการช่วยเหลือเพิ่มเติม?</h2>
-            <div class="help-grid">
-              <button class="btn btn-outline">ติดต่อผู้ดูแล</button>
-            </div>
-          </div>
-        </aside>
       </div>
     </section>
 
@@ -1134,11 +1115,17 @@
   </main>
 
   <footer class="footer">
-    <div class="container footer-inner">
-      <div><strong>INVE BURN RUNNING 2026</strong><small>วิ่งด้วยกัน สุขภาพดีไปด้วยกัน ก้าวไปสู่เป้าหมายเดียวกัน</small></div>
-      <div><a href="#privacy">นโยบายความเป็นส่วนตัว</a> &nbsp; | &nbsp; <a href="#terms">เงื่อนไขการใช้งาน</a> &nbsp; | &nbsp; <a href="#contact" data-page-link="contact">ติดต่อเรา</a></div>
+    <div class="container footer-inner footer-contact">
+      <div>
+        <strong>INVE BURN RUNNING 2026</strong>
+        <small>วิ่งด้วยกัน สุขภาพดีไปด้วยกัน ก้าวไปสู่เป้าหมายเดียวกัน</small>
+      </div>
+      <div class="footer-info">
+        <span>ที่อยู่: บริษัท อินเว จำกัด 333 ถนนวิภาวดีรังสิต แขวงจอมพล เขตจตุจักร กรุงเทพมหานคร 10900</span>
+        <span>โทรศัพท์: 02-273-8888 ต่อ 12345</span>
+        <span>อีเมล: info@inveburnrunning.com</span>
+      </div>
       <div>© 2026 INVE Company Limited. All rights reserved.</div>
-      <div class="social"><span>f</span><span>LINE</span><span>✉</span></div>
     </div>
   </footer>
 
@@ -1152,6 +1139,7 @@
       employeesSheetName: "Employees"
     };
     const LOCAL_REGISTRATIONS_KEY = "inveBurnRegistrations";
+    const CURRENT_USER_KEY = "inveBurnCurrentUser";
     const GOAL_DISTANCES = [10, 20];
     const REGISTRATION_START = new Date("2026-07-13T00:00:00+07:00");
     const REGISTRATION_END = new Date("2026-07-31T23:59:59+07:00");
@@ -1343,6 +1331,26 @@
       return registrations.find(user => codeMatches(user.code, code));
     }
 
+    function saveCurrentUserSession(user) {
+      if (!user?.code) return;
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+    }
+
+    function restoreCurrentUserSession() {
+      try {
+        const user = JSON.parse(localStorage.getItem(CURRENT_USER_KEY) || "null");
+        if (user?.code) {
+          appState.currentUser = user;
+        }
+      } catch (err) {
+        localStorage.removeItem(CURRENT_USER_KEY);
+      }
+    }
+
+    function clearCurrentUserSession() {
+      localStorage.removeItem(CURRENT_USER_KEY);
+    }
+
     async function loadSheetRows(sheetName) {
       const sheetUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.spreadsheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
       const json = await loadGoogleVisualizationJson(sheetUrl);
@@ -1419,6 +1427,7 @@
         const refreshed = buildLoginResultFromUser({ ...appState.currentUser, ...latestUser }, runs);
         appState.currentUser = refreshed.employee;
         appState.runs = refreshed.runs;
+        saveCurrentUserSession(appState.currentUser);
       } else {
         appState.runs = runs;
       }
@@ -2002,6 +2011,10 @@
     }
 
     function setPage(page) {
+      if (page === "dashboard" && !appState.currentUser) {
+        toast("กรุณาเข้าสู่ระบบก่อนใช้งาน");
+        page = "login";
+      }
       document.querySelectorAll(".page").forEach(item => item.classList.remove("active"));
       document.getElementById(`${page}Page`).classList.add("active");
       document.querySelectorAll("[data-page-link]").forEach(item => item.classList.toggle("active", item.dataset.pageLink === page));
@@ -2046,7 +2059,8 @@
     }
 
     function renderDashboard() {
-      const user = appState.currentUser || appState.employees[0] || { code: "-", name: "พนักงาน", department: "-", goal: 10, total: 0 };
+      const user = appState.currentUser;
+      if (!user) return;
       const goal = Number(user.goal || 10);
       const total = Number(user.total || 0);
       const percent = Math.min(100, Math.round(total / goal * 100));
@@ -2162,6 +2176,7 @@
         if (!employee) throw new Error("ระบบข้อมูลยังไม่พร้อม กรุณาลองสมัครใหม่อีกครั้ง");
         await saveLocalRegistration(employee, password);
         appState.currentUser = employee;
+        saveCurrentUserSession(employee);
         upsertRegisteredUser(employee);
         updateAuthUi();
         renderStats();
@@ -2184,6 +2199,7 @@
         if (!employee) throw new Error("ระบบข้อมูลยังไม่พร้อม กรุณาลองเข้าสู่ระบบใหม่อีกครั้ง");
         appState.currentUser = employee;
         appState.runs = runs || appState.runs;
+        saveCurrentUserSession(employee);
         upsertRegisteredUser(employee);
         updateAuthUi();
         renderDashboard();
@@ -2219,6 +2235,9 @@
 
     document.getElementById("runForm").addEventListener("submit", async event => {
       event.preventDefault();
+      if (!appState.currentUser) {
+        restoreCurrentUserSession();
+      }
       if (!appState.currentUser) return toast("กรุณาเข้าสู่ระบบก่อนบันทึกผล");
       const imageInput = document.getElementById("runImage");
       if (imageInput.files.length > 1) return toast("อัปโหลดได้ครั้งละ 1 รูปเท่านั้น");
@@ -2235,6 +2254,7 @@
         });
         appState.currentUser = employee;
         appState.runs = runs;
+        saveCurrentUserSession(employee);
         upsertRegisteredUser(employee);
         renderStats();
         renderLeaderboard();
@@ -2310,6 +2330,7 @@
     });
     document.getElementById("logoutBtn").addEventListener("click", () => {
       appState.currentUser = null;
+      clearCurrentUserSession();
       updateAuthUi();
       setPage("home");
       toast("ออกจากระบบแล้ว");
@@ -2317,6 +2338,7 @@
 
     async function init() {
       document.getElementById("runDate").valueAsDate = new Date();
+      restoreCurrentUserSession();
       renderDistanceOptions();
       updateRegistrationWindowUi();
       try {
@@ -2332,6 +2354,7 @@
       }
       renderStats();
       renderLeaderboard();
+      updateAuthUi();
       renderDashboard();
       renderAdmin();
       startRealtimeUpdates();
