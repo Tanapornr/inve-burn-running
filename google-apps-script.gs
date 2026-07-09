@@ -73,16 +73,19 @@ function register(body) {
   const employee = findEmployee_(code);
   if (!employee) throw new Error('ไม่พบข้อมูลพนักงาน');
 
-  const usersSheet = getSheet_(CONFIG.USERS_SHEET);
-  const users = sheetToObjects_(usersSheet);
-  const userIndex = users.findIndex(row => codeMatches_(row.code, code));
-  const employeeDto = employeeToDto_(employee);
-  const userRow = [employeeDto.code, employeeDto.name, employeeDto.department, goal, hashPassword_(password), new Date()];
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const usersSheet = getSheet_(CONFIG.USERS_SHEET);
+    const users = sheetToObjects_(usersSheet);
+    const userIndex = users.findIndex(row => codeMatches_(row.code, code));
+    if (userIndex >= 0) throw new Error('บัญชีนี้มีอยู่แล้ว กรุณาเข้าสู่ระบบ');
 
-  if (userIndex >= 0) {
-    usersSheet.getRange(userIndex + 2, 1, 1, userRow.length).setValues([userRow]);
-  } else {
+    const employeeDto = employeeToDto_(employee);
+    const userRow = [employeeDto.code, employeeDto.name, employeeDto.department, goal, hashPassword_(password), new Date()];
     usersSheet.appendRow(userRow);
+  } finally {
+    lock.releaseLock();
   }
 
   return { ok: true, employee: buildUserSummary_(code) };
@@ -147,7 +150,7 @@ function getDashboard(body) {
     employee: code ? buildUserSummary_(code) : null,
     leaderboard: getLeaderboard_(),
     stats: getStats_(),
-    runs: code ? getRunsByCode_(code) : []
+    runs: code ? getRunsByCode_(code) : getAllRuns_()
   };
 }
 
@@ -214,6 +217,20 @@ function getRunsByCode_(code) {
       };
     })
     .sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
+function getAllRuns_() {
+  return sheetToObjects_(getSheet_(CONFIG.RUNS_SHEET)).map(row => ({
+    id: row.id || '',
+    code: normalizeCode_(row.code),
+    name: row.name || '',
+    department: row.department || '',
+    distance: Number(row.distance || 0),
+    date: row.date,
+    note: row.note || '',
+    imageUrl: row.imageUrl || '',
+    createdAt: row.createdAt || ''
+  }));
 }
 
 function findEmployee_(code) {

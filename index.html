@@ -1234,6 +1234,24 @@
       if (["getDashboard"].includes(action)) {
         return apiJsonp(action, payload);
       }
+      if (action === "addRun") {
+        const beforeCount = appState.runs.length;
+        const requestBody = JSON.stringify({ action, ...payload });
+        await fetch(CONFIG.apiUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: requestBody
+        });
+        const dashboard = await waitForRunSync(payload.code, beforeCount);
+        const syncedRuns = dashboard?.runs || [];
+        if (!dashboard?.employee || syncedRuns.length <= beforeCount) throw new Error("บันทึกผลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+        return {
+          ok: true,
+          employee: dashboard.employee,
+          runs: syncedRuns
+        };
+      }
       const requestBody = JSON.stringify({ action, ...payload });
       try {
         const res = await fetch(CONFIG.apiUrl, {
@@ -1302,6 +1320,20 @@
         script.src = url.toString();
         document.head.appendChild(script);
       });
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => window.setTimeout(resolve, ms));
+    }
+
+    async function waitForRunSync(code, beforeCount) {
+      let latestDashboard = null;
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        await sleep(attempt === 0 ? 1200 : 900);
+        latestDashboard = await apiJsonp("getDashboard", { code });
+        if ((latestDashboard.runs || []).length > beforeCount) return latestDashboard;
+      }
+      return latestDashboard;
     }
 
     function loadGoogleVisualizationJson(url) {
@@ -1454,6 +1486,9 @@
     }
 
     async function loadRegisteredData() {
+      if (!CONFIG.demoMode && CONFIG.apiUrl) {
+        return loadRegisteredDataFromApi();
+      }
       return loadRegisteredDataFromSheet();
     }
 
@@ -1475,6 +1510,39 @@
         runs = [];
       }
       return applyRegisteredData(users, runs);
+    }
+
+    async function loadRegisteredDataFromApi() {
+      const dashboard = await apiJsonp("getDashboard", {});
+      applyRegisteredData(dashboard.leaderboard || [], dashboard.runs || []);
+
+      if (appState.currentUser?.code) {
+        const latestUser = findRegisteredUser(appState.currentUser.code);
+        if (!latestUser) {
+          appState.currentUser = null;
+          appState.runs = [];
+          clearCurrentUserSession();
+          updateAuthUi();
+          return appState.registeredUsers;
+        }
+
+        try {
+          const userDashboard = await apiJsonp("getDashboard", { code: appState.currentUser.code });
+          appState.currentUser = userDashboard.employee || { ...appState.currentUser, ...latestUser };
+          appState.currentUser.goal = normalizeGoalDistance(appState.currentUser.goal);
+          appState.runs = userDashboard.runs || appState.runs || [];
+          saveCurrentUserSession(appState.currentUser);
+        } catch (err) {
+          if (/ยังไม่ได้ลงทะเบียน|not registered/i.test(err.message || "")) {
+            appState.currentUser = null;
+            appState.runs = [];
+            clearCurrentUserSession();
+            updateAuthUi();
+          }
+        }
+      }
+
+      return appState.registeredUsers;
     }
 
     async function loginFromSheet(payload = {}) {
@@ -1906,7 +1974,7 @@
     }
 
     function setPage(page) {
-      if (page === "dashboard" && (!appState.currentUser || !findRegisteredUser(appState.currentUser.code))) {
+      if (page === "dashboard" && !appState.currentUser?.code) {
         appState.currentUser = null;
         clearCurrentUserSession();
         updateAuthUi();
@@ -2073,8 +2141,10 @@
         const { employee } = await api("register", payload);
         if (!employee) throw new Error("ระบบข้อมูลยังไม่พร้อม กรุณาลองสมัครใหม่อีกครั้ง");
         appState.currentUser = employee;
+        appState.runs = [];
         saveCurrentUserSession(employee);
         upsertRegisteredUser(employee);
+        await refreshRegisteredDataSafely();
         updateAuthUi();
         renderStats();
         renderLeaderboard();
@@ -2139,7 +2209,7 @@
 
     document.getElementById("runForm").addEventListener("submit", async event => {
       event.preventDefault();
-      if (!appState.currentUser || !findRegisteredUser(appState.currentUser.code)) {
+      if (!appState.currentUser?.code) {
         appState.currentUser = null;
         clearCurrentUserSession();
         updateAuthUi();
@@ -2162,6 +2232,7 @@
         appState.runs = runs;
         saveCurrentUserSession(employee);
         upsertRegisteredUser(employee);
+        await refreshRegisteredDataSafely();
         renderStats();
         renderLeaderboard();
         renderDashboard();
