@@ -62,13 +62,13 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       min-width: 260px;
     }
 
     .brand-logo {
-      width: 46px;
-      height: 46px;
+      width: 205px;
+      height: 64px;
       object-fit: contain;
       flex: 0 0 auto;
     }
@@ -563,6 +563,7 @@
     .admin-layout { display: grid; grid-template-columns: 290px 1fr; min-height: calc(100vh - 76px); background: #f7fbff; }
     .admin-sidebar { background: linear-gradient(180deg, #001f55, #00143a); color: #fff; padding: 26px 18px; display: flex; flex-direction: column; gap: 14px; }
     .admin-sidebar .brand { min-width: auto; margin-bottom: 18px; }
+    .admin-sidebar .brand-logo { width: 210px; height: 72px; }
     .admin-nav { display: grid; gap: 10px; }
     .admin-tab { min-height: 58px; border-radius: 10px; background: transparent; color: #fff; display: flex; align-items: center; gap: 14px; padding: 0 18px; font-weight: 850; text-align: left; }
     .admin-tab.active { background: linear-gradient(135deg, var(--orange), #ff6c18); }
@@ -602,6 +603,7 @@
     @media (max-width: 700px) {
       .topbar { height: auto; padding: 12px 0; }
       .brand { min-width: 0; }
+      .brand-logo { width: 180px; height: 56px; }
       .brand-text { font-size: 22px; }
       .brand-text small { font-size: 19px; }
       .nav { flex-wrap: wrap; }
@@ -624,9 +626,7 @@
   <header class="topbar">
     <div class="container nav">
       <a class="brand" href="#home" data-page-link="home" aria-label="INVE BURN RUNNING 2026">
-        <span class="runner-mark"></span>
         <img class="brand-logo" src="https://img1.pic.in.th/images/306731248_377740387906627_272750946946146413_n.png" alt="INVE logo">
-        <span class="brand-text">INVE <span>BURN</span><small>RUNNING 2026</small></span>
       </a>
       <nav class="menu">
         <a href="#home" class="active" data-page-link="home">⌂ หน้าแรก</a>
@@ -1041,9 +1041,7 @@
       <div class="admin-layout">
         <aside class="admin-sidebar">
           <a class="brand" href="#admin" data-page-link="admin">
-            <span class="runner-mark"></span>
             <img class="brand-logo" src="https://img1.pic.in.th/images/306731248_377740387906627_272750946946146413_n.png" alt="INVE logo">
-            <span class="brand-text" style="font-size:23px">INVE <span>BURN</span><small style="font-size:20px">RUNNING 2026</small></span>
           </a>
           <div class="admin-nav">
             <button class="admin-tab" data-admin-view="adminDashboard">🏠 แดชบอร์ด</button>
