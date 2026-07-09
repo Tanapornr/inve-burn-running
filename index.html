@@ -889,7 +889,7 @@
             <div style="border:1px solid var(--line);border-radius:10px;padding:18px;text-align:center">
               <small>อันดับปัจจุบัน</small>
               <div class="stat-value" id="myRank">15</div>
-              <small>จากพนักงานทั้งหมด <span id="rankTotalPeople">248</span> คน</small>
+              <small>จากผู้ลงทะเบียนทั้งหมด <span id="rankTotalPeople">0</span> คน</small>
             </div>
           </section>
           <section class="panel mini-card">
@@ -1567,6 +1567,22 @@
       }, {});
     }
 
+    function upsertRegisteredUser(employee) {
+      if (!employee?.code) return;
+      const normalizedEmployee = {
+        ...employee,
+        code: normalizeCode(employee.code),
+        total: Number(employee.total || 0),
+        goal: Number(employee.goal || 0)
+      };
+      const exists = appState.allRegisteredUsers.some(item => codeMatches(item.code, normalizedEmployee.code));
+      appState.allRegisteredUsers = exists
+        ? appState.allRegisteredUsers.map(item => codeMatches(item.code, normalizedEmployee.code) ? { ...item, ...normalizedEmployee } : item)
+        : [normalizedEmployee, ...appState.allRegisteredUsers];
+      appState.allRegisteredUsers.sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
+      appState.registeredUsers = appState.allRegisteredUsers.slice(0, 10);
+    }
+
     function renderAdmin() {
       const registered = appState.allRegisteredUsers;
       const employees = appState.employees;
@@ -1725,8 +1741,10 @@
       const total = Number(user.total || 0);
       const percent = Math.min(100, Math.round(total / goal * 100));
       const remain = Math.max(0, goal - total);
-      const sorted = [...appState.employees].sort((a, b) => b.total - a.total);
-      const rank = sorted.findIndex(item => item.code === user.code) + 1;
+      const registeredUsers = [...appState.allRegisteredUsers].sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
+      const registeredCount = registeredUsers.length;
+      const rank = registeredUsers.findIndex(item => codeMatches(item.code, user.code)) + 1;
+      const rankLabel = rank > 0 ? rank : "-";
       document.getElementById("welcomeName").textContent = `สวัสดี คุณ${user.name}`;
       document.getElementById("dashTotal").textContent = fmt.format(total).replace(".00", "");
       document.getElementById("dashGoal").textContent = intFmt.format(goal);
@@ -1734,12 +1752,12 @@
       document.getElementById("progressDonut").style.setProperty("--percent", percent);
       document.getElementById("dashBar").style.width = `${percent}%`;
       document.getElementById("dashRemain").textContent = `${fmt.format(remain)} กม.`;
-      document.getElementById("myRank").textContent = rank || 15;
-      document.getElementById("rankTotalPeople").textContent = 248;
+      document.getElementById("myRank").textContent = rankLabel;
+      document.getElementById("rankTotalPeople").textContent = intFmt.format(registeredCount);
       document.getElementById("userStats").innerHTML = [
         ["▱", "ระยะทางสะสม", `${fmt.format(total)} <small>กม.</small>`, "เพิ่มขึ้น 12.30 กม. จากสัปดาห์ที่แล้ว ↑", "icon-blue"],
         ["◎", "เป้าหมายที่เลือก", `${intFmt.format(goal)} <small>กม.</small>`, "เปลี่ยนเป้าหมาย →", "icon-orange"],
-        ["🏆", "อันดับปัจจุบัน", `${rank || 15}`, "จากพนักงานทั้งหมด 248 คน", "icon-red"],
+        ["🏆", "อันดับปัจจุบัน", `${rankLabel}`, `จากผู้ลงทะเบียนทั้งหมด ${intFmt.format(registeredCount)} คน`, "icon-red"],
         ["▣", "จำนวนครั้งที่บันทึก", `${appState.runs.length} <small>ครั้ง</small>`, "บันทึกล่าสุด 24 พ.ค. 2566", "icon-blue"]
       ].map(([icon, label, value, sub, color]) => `
         <article class="stat-card">
@@ -1823,12 +1841,7 @@
         if (!employee) throw new Error("กรุณาอัปเดตและ Deploy Google Apps Script เวอร์ชันล่าสุดก่อนสมัคร");
         await saveLocalRegistration(employee, password);
         appState.currentUser = employee;
-        if (appState.allRegisteredUsers.some(item => codeMatches(item.code, employee.code))) {
-          appState.allRegisteredUsers = appState.allRegisteredUsers.map(item => codeMatches(item.code, employee.code) ? { ...item, ...employee } : item);
-        } else {
-          appState.allRegisteredUsers = [{ ...employee, total: Number(employee.total || 0) }, ...appState.allRegisteredUsers];
-        }
-        appState.registeredUsers = [...appState.allRegisteredUsers].sort((a, b) => b.total - a.total).slice(0, 10);
+        upsertRegisteredUser(employee);
         updateAuthUi();
         renderStats();
         renderLeaderboard();
@@ -1850,6 +1863,7 @@
         if (!employee) throw new Error("กรุณาอัปเดตและ Deploy Google Apps Script เวอร์ชันล่าสุดก่อนเข้าสู่ระบบ");
         appState.currentUser = employee;
         appState.runs = runs || appState.runs;
+        upsertRegisteredUser(employee);
         updateAuthUi();
         renderDashboard();
         setPage("dashboard");
@@ -1860,10 +1874,21 @@
     });
 
     document.getElementById("runImage").addEventListener("change", event => {
+      if (event.target.files.length > 1) {
+        event.target.value = "";
+        document.getElementById("runPreview").style.display = "none";
+        return toast("อัปโหลดได้ครั้งละ 1 รูปเท่านั้น");
+      }
       const file = event.target.files[0];
       if (!file) return;
+      if (!["image/jpeg", "image/png"].includes(file.type)) {
+        event.target.value = "";
+        document.getElementById("runPreview").style.display = "none";
+        return toast("รองรับเฉพาะไฟล์ JPG, JPEG หรือ PNG");
+      }
       if (file.size > 5 * 1024 * 1024) {
         event.target.value = "";
+        document.getElementById("runPreview").style.display = "none";
         return toast("ขนาดไฟล์ต้องไม่เกิน 5MB");
       }
       const preview = document.getElementById("runPreview");
@@ -1874,7 +1899,10 @@
     document.getElementById("runForm").addEventListener("submit", async event => {
       event.preventDefault();
       if (!appState.currentUser) return toast("กรุณาเข้าสู่ระบบก่อนบันทึกผล");
-      const file = document.getElementById("runImage").files[0];
+      const imageInput = document.getElementById("runImage");
+      if (imageInput.files.length > 1) return toast("อัปโหลดได้ครั้งละ 1 รูปเท่านั้น");
+      const file = imageInput.files[0];
+      if (!file) return toast("กรุณาอัปโหลดรูปหลักฐานการวิ่ง 1 รูป");
       try {
         const imageData = file ? await fileToBase64(file) : "";
         const { employee, runs } = await api("addRun", {
@@ -1886,6 +1914,7 @@
         });
         appState.currentUser = employee;
         appState.runs = runs;
+        upsertRegisteredUser(employee);
         renderStats();
         renderLeaderboard();
         renderDashboard();
