@@ -65,7 +65,8 @@ function register(body) {
   const password = String(body.password || '');
 
   const now = new Date();
-  if (now < CONFIG.REGISTRATION_START || now > CONFIG.REGISTRATION_END) throw new Error('ยังไม่อยู่ในช่วงรับสมัคร เปิดรับสมัครวันที่ 13 - 31 กรกฎาคม 2569');
+  if (now > CONFIG.REGISTRATION_END) throw new Error('ปิดการรับสมัครลงทะเบียนแล้ว');
+  if (now < CONFIG.REGISTRATION_START) throw new Error('ยังไม่อยู่ในช่วงรับสมัคร เปิดรับสมัครวันที่ 13 - 31 กรกฎาคม 2569');
   if (![10, 20].includes(goal)) throw new Error('กรุณาเลือกระยะ 10 หรือ 20 KM');
   if (password.length < 6) throw new Error('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
 
