@@ -711,7 +711,7 @@
               <button class="btn btn-outline" type="button" id="lookupEmployeeBtn" style="min-width:120px">ตกลง</button>
               <span class="inline-ok" id="employeeFound" style="display:none">● พบข้อมูลพนักงาน</span>
             </div>
-            <div class="helper">กรอกรหัสพนักงานแล้วกด “ตกลง” ระบบจะตรวจสอบข้อมูลจาก Google Sheet จริง</div>
+            <div class="helper">กรอกรหัสพนักงานแล้วกด “ตกลง” ระบบจะตรวจสอบข้อมูลพนักงานให้อัตโนมัติ</div>
             <hr class="divider">
 
             <div class="step-title"><span>2</span><span>ข้อมูลพนักงาน <small class="helper" style="margin-left:8px">ดึงข้อมูลอัตโนมัติ</small></span></div>
@@ -933,7 +933,6 @@
             </div>
           </div>
           <button class="btn btn-navy" style="width:100%;margin-top:18px">เข้าสู่ระบบผู้ดูแล</button>
-          <p class="helper" style="text-align:center">ค่าเริ่มต้น: admin / admin2026</p>
         </form>
       </div>
     </section>
@@ -1109,7 +1108,7 @@
         }
       }
       if (!CONFIG.apiUrl) {
-        throw new Error("ยังไม่ได้เชื่อม URL บันทึกข้อมูล กรุณานำ Google Apps Script ไป Deploy แล้วใส่ Web App URL ใน CONFIG.apiUrl");
+        throw new Error("ยังไม่ได้เชื่อมระบบบันทึกข้อมูล");
       }
       if (action === "register") {
         try {
@@ -1163,7 +1162,7 @@
         const script = document.createElement("script");
         const timeoutId = window.setTimeout(() => {
           cleanup();
-          reject(new Error("เชื่อมต่อ Google Apps Script ไม่สำเร็จ กรุณาอัปเดตและ Deploy Apps Script เวอร์ชันล่าสุด"));
+          reject(new Error("เชื่อมต่อระบบข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง"));
         }, 15000);
 
         function cleanup() {
@@ -1175,7 +1174,7 @@
         window[callbackName] = data => {
           cleanup();
           if (!data || !data.ok) {
-            reject(new Error(data?.message || "Google Apps Script ยังไม่ได้อัปเดตเวอร์ชันล่าสุด"));
+            reject(new Error(data?.message || "ระบบข้อมูลยังไม่พร้อมใช้งาน"));
             return;
           }
           resolve(data);
@@ -1183,7 +1182,7 @@
 
         script.onerror = () => {
           cleanup();
-          reject(new Error("โหลด Google Apps Script ไม่สำเร็จ"));
+          reject(new Error("โหลดระบบข้อมูลไม่สำเร็จ"));
         };
         script.src = url.toString();
         document.head.appendChild(script);
@@ -1272,43 +1271,36 @@
       return appState.employees;
     }
 
-    async function loadRegisteredDataFromSheet() {
-      const users = await loadSheetRows("Users");
-      let runs = [];
-      try {
-        runs = await loadSheetRows("Runs");
-      } catch (err) {
-        runs = [];
-      }
+    function applyRegisteredData(users = [], runs = []) {
       const totals = runs.reduce((map, row) => {
         const code = normalizeCode(row.code);
         map[code] = (map[code] || 0) + Number(row.distance || 0);
         return map;
       }, {});
 
-      const sheetRegisteredUsers = users
+      const registered = users
         .filter(row => row.code)
         .map(row => ({
           code: normalizeCode(row.code),
           name: row.name || "-",
           department: row.department || "-",
           goal: Number(row.goal || 0),
-          total: Number(totals[normalizeCode(row.code)] || 0)
+          total: Number(row.total ?? totals[normalizeCode(row.code)] ?? 0)
         }));
-      const localRegisteredUsers = Object.values(getLocalRegistrations()).map(user => ({
-        code: normalizeCode(user.code),
-        name: user.name || "-",
-        department: user.department || "-",
-        goal: Number(user.goal || 0),
-        total: Number(totals[normalizeCode(user.code)] || user.total || 0)
-      }));
-      localRegisteredUsers.forEach(localUser => {
-        if (!sheetRegisteredUsers.some(user => codeMatches(user.code, localUser.code))) {
-          sheetRegisteredUsers.push(localUser);
+
+      Object.values(getLocalRegistrations()).forEach(localUser => {
+        if (!registered.some(user => codeMatches(user.code, localUser.code))) {
+          registered.push({
+            code: normalizeCode(localUser.code),
+            name: localUser.name || "-",
+            department: localUser.department || "-",
+            goal: Number(localUser.goal || 0),
+            total: Number(totals[normalizeCode(localUser.code)] || localUser.total || 0)
+          });
         }
       });
 
-      appState.allRegisteredUsers = sheetRegisteredUsers.sort((a, b) => b.total - a.total);
+      appState.allRegisteredUsers = registered.sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
       appState.registeredUsers = appState.allRegisteredUsers.slice(0, 10);
       appState.allRuns = runs;
       if (appState.currentUser) {
@@ -1320,6 +1312,31 @@
         appState.runs = runs;
       }
       return appState.registeredUsers;
+    }
+
+    async function loadRegisteredData() {
+      if (CONFIG.apiUrl) {
+        try {
+          const data = await apiJsonp("getDashboard", appState.currentUser ? { code: appState.currentUser.code } : {});
+          if (Array.isArray(data.leaderboard)) {
+            return applyRegisteredData(data.leaderboard, data.runs || []);
+          }
+        } catch (err) {
+          console.warn("Live API refresh failed, using sheet fallback", err);
+        }
+      }
+      return loadRegisteredDataFromSheet();
+    }
+
+    async function loadRegisteredDataFromSheet() {
+      const users = await loadSheetRows("Users");
+      let runs = [];
+      try {
+        runs = await loadSheetRows("Runs");
+      } catch (err) {
+        runs = [];
+      }
+      return applyRegisteredData(users, runs);
     }
 
     async function loginFromSheet(payload = {}) {
@@ -1418,7 +1435,7 @@
 
       window.setTimeout(async () => {
         try {
-          await loadRegisteredDataFromSheet();
+          await loadRegisteredData();
           renderStats();
           renderLeaderboard();
           renderAdmin();
@@ -1461,7 +1478,7 @@
         const previousGoogle = window.google;
         const timeoutId = window.setTimeout(() => {
           cleanup();
-          reject(new Error("โหลดข้อมูลพนักงานจาก Google Sheet ไม่สำเร็จ"));
+          reject(new Error("โหลดข้อมูลพนักงานไม่สำเร็จ"));
         }, 12000);
 
         function cleanup() {
@@ -1480,7 +1497,7 @@
               setResponse(data) {
                 cleanup();
                 if (data.status !== "ok") {
-                  reject(new Error("Google Sheet ส่งข้อมูลกลับมาไม่สมบูรณ์"));
+                  reject(new Error("ระบบส่งข้อมูลกลับมาไม่สมบูรณ์"));
                   return;
                 }
                 resolve(data);
@@ -1491,7 +1508,7 @@
 
         script.onerror = () => {
           cleanup();
-          reject(new Error("ไม่สามารถเชื่อมต่อ Google Sheet ได้"));
+          reject(new Error("ไม่สามารถเชื่อมต่อข้อมูลได้"));
         };
         script.src = `${url}&cacheBust=${Date.now()}`;
         document.head.appendChild(script);
@@ -1541,20 +1558,20 @@
     }
 
     function renderStats() {
-      const registeredUsers = [...appState.registeredUsers].sort((a, b) => b.total - a.total);
+      const registeredUsers = [...appState.allRegisteredUsers].sort((a, b) => b.total - a.total);
       const total = registeredUsers.reduce((sum, item) => sum + Number(item.total || 0), 0);
       const top = registeredUsers[0] || { name: "-", total: 0 };
       const average = registeredUsers.length ? total / registeredUsers.length : 0;
       const stats = [
-        ["👥", "ผู้ลงทะเบียนแล้ว", `${intFmt.format(registeredUsers.length)} <small>คน</small>`, "ข้อมูลจาก Google Sheet แท็บ Users", "icon-orange"],
-        ["👟", "ระยะทางรวมทั้งหมด", `${fmt.format(total)} <small>กม.</small>`, "รวมจาก Google Sheet แท็บ Runs", "icon-blue"],
+        ["👥", "ผู้ลงทะเบียนแล้ว", `${intFmt.format(registeredUsers.length)} <small>คน</small>`, "", "icon-orange"],
+        ["👟", "ระยะทางรวมทั้งหมด", `${fmt.format(total)} <small>กม.</small>`, "", "icon-blue"],
         ["🏆", "ผู้วิ่งสูงสุดวันนี้", top.name, `ระยะทาง <span class="orange-text">${fmt.format(top.total || 0)}</span> กม.`, "icon-red"],
-        ["▥", "ค่าเฉลี่ยต่อคน", `${fmt.format(average)} <small>กม.</small>`, "คำนวณจากผลวิ่งที่บันทึกจริง", "icon-blue"]
+        ["▥", "ค่าเฉลี่ยต่อคน", `${fmt.format(average)} <small>กม.</small>`, "", "icon-blue"]
       ];
       document.getElementById("mainStats").innerHTML = stats.map(([icon, label, value, sub, color]) => `
         <article class="stat-card">
           <span class="icon-circle ${color}">${icon}</span>
-          <div><p class="stat-label">${label}</p><p class="stat-value">${value}</p><p class="stat-sub">${sub}</p></div>
+          <div><p class="stat-label">${label}</p><p class="stat-value">${value}</p>${sub ? `<p class="stat-sub">${sub}</p>` : ""}</div>
         </article>
       `).join("");
       document.getElementById("sideParticipants").innerHTML = `${intFmt.format(registeredUsers.length)} <small>คน</small>`;
@@ -1573,16 +1590,17 @@
             <h3>🏆 ${goal} KM <small>Top 10</small></h3>
             <div style="overflow:auto">
               <table>
-                <thead><tr><th>อันดับ</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>ระยะสะสม</th></tr></thead>
+                <thead><tr><th>อันดับ</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>แผนก</th><th>ระยะสะสม</th></tr></thead>
                 <tbody>
                   ${rows.map((item, index) => `
                     <tr>
                       <td><span class="rank ${rankClass(index)}">${index + 1}</span></td>
                       <td>${item.code}</td>
-                      <td><b>${item.name}</b><br><small>${item.department || "-"}</small></td>
+                      <td><b>${item.name}</b></td>
+                      <td>${item.department || "-"}</td>
                       <td><b class="orange-text">${fmt.format(item.total || 0)}</b></td>
                     </tr>
-                  `).join("") || `<tr><td colspan="4" style="text-align:center">ยังไม่มีผู้ลงทะเบียนระยะ ${goal} KM</td></tr>`}
+                  `).join("") || `<tr><td colspan="5" style="text-align:center">ยังไม่มีผู้ลงทะเบียนระยะ ${goal} KM</td></tr>`}
                 </tbody>
               </table>
             </div>
@@ -1626,10 +1644,10 @@
       const pendingCount = Math.max(0, employees.length - registered.length);
 
       document.getElementById("adminStats").innerHTML = [
-        ["👥", "ผู้เข้าร่วมทั้งหมด", `${intFmt.format(registered.length)} คน`, "ลงทะเบียนในชีต Users", "icon-blue"],
-        ["👟", "ระยะทางรวมทั้งหมด", `${fmt.format(totalDistance)} กม.`, "รวมจากชีต Runs", "icon-orange"],
+        ["👥", "ผู้เข้าร่วมทั้งหมด", `${intFmt.format(registered.length)} คน`, "ผู้สมัครเข้าร่วมกิจกรรม", "icon-blue"],
+        ["👟", "ระยะทางรวมทั้งหมด", `${fmt.format(totalDistance)} กม.`, "รวมระยะจากผลวิ่งทั้งหมด", "icon-orange"],
         ["📋", "รายการผลการวิ่ง", `${intFmt.format(appState.allRuns.length)} รายการ`, "ข้อมูลที่บันทึกจริง", "icon-red"],
-        ["🏢", "แผนกทั้งหมด", `${intFmt.format(departments.length)} แผนก`, "อ้างอิงจากชีต Employees", "icon-blue"]
+        ["🏢", "แผนกทั้งหมด", `${intFmt.format(departments.length)} แผนก`, "แผนกในระบบพนักงาน", "icon-blue"]
       ].map(adminStatCard).join("");
 
       document.getElementById("adminTopRows").innerHTML = registered.slice(0, 10).map((user, index) => `
@@ -1669,8 +1687,8 @@
         });
 
       document.getElementById("adminEmployeeStats").innerHTML = [
-        ["👥", "พนักงานทั้งหมด", `${intFmt.format(appState.employees.length)} คน`, "จากชีต Employees", "icon-blue"],
-        ["✅", "ลงทะเบียนแล้ว", `${intFmt.format(appState.allRegisteredUsers.length)} คน`, "มีข้อมูลในชีต Users", "icon-orange"],
+        ["👥", "พนักงานทั้งหมด", `${intFmt.format(appState.employees.length)} คน`, "รายชื่อพนักงานทั้งหมด", "icon-blue"],
+        ["✅", "ลงทะเบียนแล้ว", `${intFmt.format(appState.allRegisteredUsers.length)} คน`, "ผู้สมัครเข้าร่วมกิจกรรม", "icon-orange"],
         ["🧍", "ยังไม่ลงทะเบียน", `${intFmt.format(Math.max(0, appState.employees.length - appState.allRegisteredUsers.length))} คน`, "รอสมัครเข้าร่วม", "icon-red"],
         ["🏢", "แผนกทั้งหมด", `${intFmt.format(new Set(appState.employees.map(item => item.department)).size)} แผนก`, "ไม่รวมช่องเบอร์โทรศัพท์", "icon-blue"]
       ].map(adminStatCard).join("");
@@ -1766,7 +1784,7 @@
       refreshInFlight = true;
       try {
         await loadEmployeesFromSheet(true);
-        await loadRegisteredDataFromSheet();
+        await loadRegisteredData();
         renderStats();
         renderLeaderboard();
         if (appState.currentUser) {
@@ -1899,7 +1917,7 @@
           password
         };
         const { employee } = await api("register", payload);
-        if (!employee) throw new Error("กรุณาอัปเดตและ Deploy Google Apps Script เวอร์ชันล่าสุดก่อนสมัคร");
+        if (!employee) throw new Error("ระบบข้อมูลยังไม่พร้อม กรุณาลองสมัครใหม่อีกครั้ง");
         await saveLocalRegistration(employee, password);
         appState.currentUser = employee;
         upsertRegisteredUser(employee);
@@ -1921,7 +1939,7 @@
           code: document.getElementById("loginCode").value,
           password: document.getElementById("loginPassword").value
         });
-        if (!employee) throw new Error("กรุณาอัปเดตและ Deploy Google Apps Script เวอร์ชันล่าสุดก่อนเข้าสู่ระบบ");
+        if (!employee) throw new Error("ระบบข้อมูลยังไม่พร้อม กรุณาลองเข้าสู่ระบบใหม่อีกครั้ง");
         appState.currentUser = employee;
         appState.runs = runs || appState.runs;
         upsertRegisteredUser(employee);
@@ -2015,7 +2033,7 @@
         document.getElementById(button.dataset.adminView).classList.add("active");
         const titles = {
           adminDashboard: ["แดชบอร์ดผู้ดูแลระบบ", "ภาพรวมการจัดกิจกรรม INVE BURN RUNNING 2026"],
-          adminEmployees: ["จัดการพนักงาน", "แสดงรายชื่อจากชีต Employees และสถานะลงทะเบียน"],
+          adminEmployees: ["จัดการพนักงาน", "แสดงรายชื่อพนักงานและสถานะลงทะเบียน"],
           adminReports: ["รายงานสรุป", "สรุปตามแผนกและเป้าหมายกิโลเมตร"],
           adminRankings: ["อันดับแยกตามกิโลเมตร", "Top 10 แยกตามเป้าหมาย 5 KM, 7 KM และ 10 KM"]
         };
@@ -2045,7 +2063,7 @@
       try {
         if (!CONFIG.demoMode) {
           await loadEmployeesFromSheet(true);
-          await loadRegisteredDataFromSheet();
+          await loadRegisteredData();
         } else {
           appState.allRegisteredUsers = [...appState.employees];
           appState.registeredUsers = [...appState.employees].slice(0, 10);
