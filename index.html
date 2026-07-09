@@ -939,10 +939,10 @@
             <span class="brand-text" style="font-size:23px">INVE <span>BURN</span><small style="font-size:20px">RUNNING 2026</small></span>
           </a>
           <div class="admin-nav">
-            <button class="admin-tab active" data-admin-view="adminDashboard">🏠 แดชบอร์ด</button>
+            <button class="admin-tab" data-admin-view="adminDashboard">🏠 แดชบอร์ด</button>
             <button class="admin-tab" data-admin-view="adminEmployees">👥 จัดการพนักงาน</button>
             <button class="admin-tab" data-admin-view="adminReports">📊 รายงานสรุป</button>
-            <button class="admin-tab" data-admin-view="adminRankings">🏆 อันดับตามกิโล</button>
+            <button class="admin-tab active" data-admin-view="adminRankings">🏆 อันดับตามกิโลเมตร</button>
             <button class="admin-tab" id="adminLogout">↩ ออกจากระบบ</button>
           </div>
           <div style="margin-top:auto">
@@ -953,8 +953,8 @@
         <div class="admin-main">
           <div class="admin-top">
             <div>
-              <h1 id="adminTitle" style="margin:0">แดชบอร์ดผู้ดูแลระบบ</h1>
-              <p class="helper" id="adminSubtitle">ภาพรวมการจัดกิจกรรม INVE BURN RUNNING 2026</p>
+              <h1 id="adminTitle" style="margin:0">อันดับแยกตามกิโลเมตร</h1>
+              <p class="helper" id="adminSubtitle">Top 10 แยกตามเป้าหมาย 5 KM, 7 KM และ 10 KM</p>
             </div>
             <div class="user-mini">
               <div class="bell">🔔<span>3</span></div>
@@ -963,7 +963,7 @@
             </div>
           </div>
 
-          <div class="admin-view active" id="adminDashboard">
+          <div class="admin-view" id="adminDashboard">
             <div class="admin-card-grid" id="adminStats"></div>
             <div class="home-layout" style="grid-template-columns:1fr .72fr">
               <section class="admin-panel">
@@ -1010,8 +1010,8 @@
             </div>
           </div>
 
-          <div class="admin-view" id="adminRankings">
-            <h2 style="margin-top:0">อันดับระยะสะสมแยกตามกิโล</h2>
+          <div class="admin-view active" id="adminRankings">
+            <h2 style="margin-top:0">อันดับแยกตามกิโลเมตร</h2>
             <div class="goal-blocks" id="goalRankingBlocks"></div>
           </div>
         </div>
@@ -1090,10 +1090,17 @@
         const employee = await lookupEmployeeFromSheet(payload.code || payload.employeeCode);
         return { ok: true, employee };
       }
+      if (action === "login") {
+        try {
+          return await apiJsonp(action, payload);
+        } catch (err) {
+          return loginFromSheet(payload);
+        }
+      }
       if (!CONFIG.apiUrl) {
         throw new Error("ยังไม่ได้เชื่อม URL บันทึกข้อมูล กรุณานำ Google Apps Script ไป Deploy แล้วใส่ Web App URL ใน CONFIG.apiUrl");
       }
-      if (["register", "login", "getDashboard"].includes(action)) {
+      if (["register", "getDashboard"].includes(action)) {
         return apiJsonp(action, payload);
       }
       const requestBody = JSON.stringify({ action, ...payload });
@@ -1245,6 +1252,58 @@
       appState.registeredUsers = appState.allRegisteredUsers.slice(0, 10);
       appState.runs = runs;
       return appState.registeredUsers;
+    }
+
+    async function loginFromSheet(payload = {}) {
+      const code = normalizeCode(payload.code || payload.employeeCode);
+      const password = String(payload.password || "");
+      const [users, runs] = await Promise.all([
+        loadSheetRows("Users"),
+        loadSheetRows("Runs").catch(() => [])
+      ]);
+      const user = users.find(row => codeMatches(row.code, code));
+      if (!user) throw new Error("ยังไม่ได้ลงทะเบียน");
+
+      const passwordHash = await sha256(password);
+      if (String(user.passwordHash || "").toLowerCase() !== passwordHash) {
+        throw new Error("รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง");
+      }
+
+      let cumulative = 0;
+      const userRuns = runs
+        .filter(row => codeMatches(row.code, code))
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+        .map(row => {
+          cumulative += Number(row.distance || 0);
+          return {
+            id: row.id || "",
+            code: normalizeCode(row.code),
+            distance: Number(row.distance || 0),
+            date: row.date,
+            note: row.note || "",
+            imageUrl: row.imageUrl || "",
+            cumulative
+          };
+        })
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      return {
+        ok: true,
+        employee: {
+          code: normalizeCode(user.code),
+          name: user.name || "-",
+          department: user.department || "-",
+          goal: Number(user.goal || 0),
+          total: cumulative
+        },
+        runs: userRuns
+      };
+    }
+
+    async function sha256(text) {
+      const bytes = new TextEncoder().encode(String(text));
+      const hashBuffer = await crypto.subtle.digest("SHA-256", bytes);
+      return [...new Uint8Array(hashBuffer)].map(byte => byte.toString(16).padStart(2, "0")).join("");
     }
 
     function loadGoogleVisualizationJson(url) {
@@ -1730,6 +1789,15 @@
         document.querySelectorAll(".admin-view").forEach(item => item.classList.remove("active"));
         button.classList.add("active");
         document.getElementById(button.dataset.adminView).classList.add("active");
+        const titles = {
+          adminDashboard: ["แดชบอร์ดผู้ดูแลระบบ", "ภาพรวมการจัดกิจกรรม INVE BURN RUNNING 2026"],
+          adminEmployees: ["จัดการพนักงาน", "แสดงรายชื่อจากชีต Employees และสถานะลงทะเบียน"],
+          adminReports: ["รายงานสรุป", "สรุปตามแผนกและเป้าหมายกิโลเมตร"],
+          adminRankings: ["อันดับแยกตามกิโลเมตร", "Top 10 แยกตามเป้าหมาย 5 KM, 7 KM และ 10 KM"]
+        };
+        const [title, subtitle] = titles[button.dataset.adminView] || titles.adminRankings;
+        document.getElementById("adminTitle").textContent = title;
+        document.getElementById("adminSubtitle").textContent = subtitle;
       });
     });
 
