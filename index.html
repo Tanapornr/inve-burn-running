@@ -1295,6 +1295,43 @@
       });
     }
 
+    function loadGoogleVisualizationJson(url) {
+      return new Promise((resolve, reject) => {
+        const callbackName = `inveSheet_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        const sheetUrl = new URL(url);
+        sheetUrl.searchParams.set("tqx", `out:json;responseHandler:${callbackName}`);
+
+        const script = document.createElement("script");
+        const timeoutId = window.setTimeout(() => {
+          cleanup();
+          reject(new Error("โหลดรายชื่อพนักงานไม่สำเร็จ กรุณาตรวจสอบสิทธิ์ Google Sheet"));
+        }, 15000);
+
+        function cleanup() {
+          window.clearTimeout(timeoutId);
+          script.remove();
+          delete window[callbackName];
+        }
+
+        window[callbackName] = json => {
+          cleanup();
+          if (!json?.table) {
+            reject(new Error("ไม่พบข้อมูลใน Google Sheet"));
+            return;
+          }
+          resolve(json);
+        };
+
+        script.onerror = () => {
+          cleanup();
+          reject(new Error("โหลดรายชื่อพนักงานไม่สำเร็จ กรุณาตรวจสอบสิทธิ์ Google Sheet"));
+        };
+
+        script.src = sheetUrl.toString();
+        document.head.appendChild(script);
+      });
+    }
+
     function normalizeCode(code) {
       return String(code || "").trim().toUpperCase();
     }
@@ -1330,7 +1367,7 @@
     }
 
     async function loadSheetRows(sheetName) {
-      const sheetUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.spreadsheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+      const sheetUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.spreadsheetId}/gviz/tq?sheet=${encodeURIComponent(sheetName)}`;
       const json = await loadGoogleVisualizationJson(sheetUrl);
       const rawRows = (json.table.rows || []).map(row => (row.c || []).map(cell => cell?.f ?? cell?.v ?? ""));
       const columnLabels = json.table.cols.map(col => String(col.label || "").trim());
