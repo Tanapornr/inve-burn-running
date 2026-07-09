@@ -291,8 +291,9 @@
 
     .home-layout {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr) 420px;
       gap: 16px;
+      align-items: start;
       padding-bottom: 10px;
     }
 
@@ -312,6 +313,11 @@
     .live { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
     .live::before { content: ""; width: 11px; height: 11px; background: #ff2323; border-radius: 50%; box-shadow: 0 0 0 4px rgba(255,35,35,.12); }
     .home-goal-rankings { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 18px; padding: 22px; }
+    .ranking-controls { display: grid; grid-template-columns: auto 220px minmax(240px, 1fr); gap: 12px; align-items: center; padding: 18px 20px; }
+    .period-tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; }
+    .period-tabs button { border: 0; background: #fff; color: var(--navy); padding: 12px 22px; font-weight: 800; cursor: pointer; }
+    .period-tabs button.active { background: var(--orange); color: #fff; }
+    .ranking-goal-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; padding: 22px; }
     .home-goal-card { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: #fff; box-shadow: 0 12px 28px rgba(0,31,85,.06); }
     .home-goal-card h3 { margin: 0; padding: 14px 16px; font-size: 20px; background: #f3f7ff; color: var(--navy); display: flex; justify-content: space-between; align-items: center; }
     .home-goal-card h3 small { color: var(--muted); font-size: 12px; }
@@ -587,7 +593,10 @@
       .admin-sidebar { position: static; }
       .admin-card-grid, .goal-blocks, .help-grid { grid-template-columns: 1fr 1fr; }
       .ranking-layout, .contact-layout { grid-template-columns: 1fr; }
-      .home-goal-rankings { grid-template-columns: 1fr; }
+      .home-goal-rankings, .ranking-goal-grid { grid-template-columns: 1fr; }
+      .ranking-controls { grid-template-columns: 1fr; }
+      .period-tabs { width: 100%; }
+      .period-tabs button { flex: 1; padding: 10px 8px; }
     }
 
     @media (max-width: 700px) {
@@ -674,7 +683,20 @@
             <button class="btn btn-ghost" data-page-link="ranking">ดูอันดับทั้งหมด →</button>
           </div>
         </section>
-
+        <aside class="panel rules">
+          <div class="panel-body">
+            <h2>📋 กติกา / วิธีการเข้าร่วม</h2>
+            <ul class="check-list">
+              <li>กิจกรรมนี้สำหรับพนักงาน INVE ทุกคน</li>
+              <li>เปิดรับสมัครลงทะเบียน วันที่ 13 - 31 กรกฎาคม 2026</li>
+              <li>สะสมระยะการวิ่ง ตั้งแต่วันที่ 1 สิงหาคม - 15 สิงหาคม 2026</li>
+              <li>ระยะทางมีให้เลือก 10 กิโลเมตร และ 20 กิโลเมตร</li>
+              <li>บันทึกระยะการวิ่งผ่านแอปหรืออุปกรณ์ที่รองรับ เช่น Strava, Garmin, Apple Health, Google Fit</li>
+              <li>ผู้ที่มีระยะสะสมสูงสุดจะได้รับรางวัลตามลำดับ</li>
+            </ul>
+            <button class="btn btn-outline" style="width:100%;margin-top:24px">⇩ ดาวน์โหลดคู่มือกิจกรรม (PDF)</button>
+          </div>
+        </aside>
       </div>
     </section>
 
@@ -685,7 +707,7 @@
             <h2>📋 กติกา / วิธีการเข้าร่วม</h2>
             <ul class="check-list">
               <li>กิจกรรมนี้สำหรับพนักงาน INVE ทุกคน</li>
-              <li>เปิดรับสมัครลงทะเบียน วันที่ 13 - 31 กรกฎาคม 2569</li>
+              <li>เปิดรับสมัครลงทะเบียน วันที่ 13 - 31 กรกฎาคม 2026</li>
               <li>ระบบจะปิดรับสมัครอัตโนมัติเมื่อพ้นช่วงเวลารับสมัคร</li>
               <li>สะสมระยะการวิ่ง ตั้งแต่วันที่ 1 สิงหาคม - 15 สิงหาคม 2026</li>
               <li>ระยะทางมีให้เลือก 10 กิโลเมตร และ 20 กิโลเมตร</li>
@@ -708,28 +730,27 @@
           <div class="container hero-content">
             <div>
               <h1 style="font-style:normal">อันดับนักวิ่ง</h1>
-              <p>ติดตามผลการสะสมระยะวิ่งของพนักงานแบบเรียลไทม์</p>
+              <p>ติดตามผลการสะสมระยะวิ่งของพนักงานแบบเรียลไทม์ แยกตามเป้าหมาย 10 กิโลเมตร และ 20 กิโลเมตร</p>
             </div>
           </div>
         </div>
-        <div class="ranking-layout section-space">
+        <div class="section-space">
           <section class="panel">
-            <div class="panel-head"><span>🏆 อันดับรวมทั้งหมด</span><span class="live">LIVE</span></div>
-            <div style="overflow:auto">
-              <table>
-                <thead><tr><th>อันดับ</th><th>ชื่อ-นามสกุล</th><th>แผนก</th><th>ระยะทาง (กม.)</th></tr></thead>
-                <tbody id="rankingPageRows"></tbody>
-              </table>
+            <div class="panel-head"><span>🏆 อันดับนักวิ่งแยกตามกิโลเมตร</span><span class="live">LIVE</span></div>
+            <div class="ranking-controls">
+              <div class="period-tabs" id="rankingPeriodTabs">
+                <button type="button" class="active" data-ranking-period="today">วันนี้</button>
+                <button type="button" data-ranking-period="week">สัปดาห์นี้</button>
+                <button type="button" data-ranking-period="month">เดือนนี้</button>
+                <button type="button" data-ranking-period="all">ทั้งหมด</button>
+              </div>
+              <select id="rankingDepartmentFilter" aria-label="เลือกแผนก">
+                <option value="">แผนกทั้งหมด</option>
+              </select>
+              <input id="rankingSearch" placeholder="ค้นหาชื่อพนักงาน หรือ รหัสพนักงาน" />
             </div>
+            <div class="ranking-goal-grid" id="rankingPageGoalBlocks"></div>
           </section>
-          <aside class="panel mini-card">
-            <h3>อันดับของฉัน</h3>
-            <div style="border:1px solid var(--line);border-radius:12px;padding:22px;text-align:center">
-              <small>อันดับปัจจุบัน</small>
-              <div class="stat-value" id="rankingMyRank">-</div>
-              <small>จากผู้ลงทะเบียนทั้งหมด <span id="rankingTotalPeople">0</span> คน</small>
-            </div>
-          </aside>
         </div>
       </div>
     </section>
@@ -864,7 +885,7 @@
           <p>สำหรับพนักงานที่ลงทะเบียนเข้าร่วมกิจกรรมแล้ว</p>
           <div class="form-row">
             <label for="loginCode">รหัสพนักงาน</label>
-            <input id="loginCode" required placeholder="เช่น 018" />
+            <input id="loginCode" required placeholder="กรอกรหัสพนักงาน" />
           </div>
           <div class="form-row">
             <label for="loginPassword">รหัสผ่าน</label>
@@ -1161,7 +1182,8 @@
       runs: CONFIG.demoMode ? [...demoRuns] : [],
       allRuns: CONFIG.demoMode ? [...demoRuns] : [],
       selectedEmployee: null,
-      isAdmin: false
+      isAdmin: false,
+      rankingFilter: { period: "today", department: "", query: "" }
     };
     let refreshInFlight = false;
     let refreshTimer = null;
@@ -1696,19 +1718,92 @@
       renderRankingPage();
     }
 
+    function parseRunDate(value) {
+      const date = value ? new Date(value) : null;
+      return date && !Number.isNaN(date.getTime()) ? date : null;
+    }
+
+    function isRunInPeriod(run, period) {
+      if (period === "all") return true;
+      const date = parseRunDate(run.date || run.createdAt);
+      if (!date) return false;
+      const now = new Date();
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      if (period === "week") {
+        const day = start.getDay() || 7;
+        start.setDate(start.getDate() - day + 1);
+      }
+      if (period === "month") {
+        start.setDate(1);
+      }
+      const end = new Date(now);
+      end.setHours(23, 59, 59, 999);
+      return date >= start && date <= end;
+    }
+
+    function rankingRowsForPeriod(period = "all") {
+      const users = appState.allRegisteredUsers.map(user => ({ ...user, total: Number(user.total || 0) }));
+      if (period === "all") return users.sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
+      const periodTotals = appState.allRuns
+        .filter(run => isRunInPeriod(run, period))
+        .reduce((map, run) => {
+          const code = normalizeCode(run.code);
+          map[code] = (map[code] || 0) + Number(run.distance || 0);
+          return map;
+        }, {});
+      return users
+        .map(user => ({ ...user, total: Number(periodTotals[normalizeCode(user.code)] || 0) }))
+        .sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
+    }
+
+    function updateRankingDepartmentOptions() {
+      const select = document.getElementById("rankingDepartmentFilter");
+      if (!select) return;
+      const current = select.value;
+      const departments = [...new Set(appState.allRegisteredUsers.map(user => user.department).filter(Boolean))].sort();
+      select.innerHTML = `<option value="">แผนกทั้งหมด</option>${departments.map(department => `<option value="${department}">${department}</option>`).join("")}`;
+      select.value = departments.includes(current) ? current : "";
+      appState.rankingFilter.department = select.value;
+    }
+
     function renderRankingPage() {
-      const rows = [...appState.allRegisteredUsers].sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
-      const currentRank = appState.currentUser ? rows.findIndex(item => codeMatches(item.code, appState.currentUser.code)) + 1 : 0;
-      document.getElementById("rankingPageRows").innerHTML = rows.map((item, index) => `
-        <tr>
-          <td><span class="rank ${rankClass(index)}">${index + 1}</span></td>
-          <td><b>${item.name}</b></td>
-          <td>${item.department || "-"}</td>
-          <td><b class="orange-text">${fmt.format(item.total || 0)}</b></td>
-        </tr>
-      `).join("") || `<tr><td colspan="4" style="text-align:center">ยังไม่มีข้อมูลอันดับ</td></tr>`;
-      document.getElementById("rankingMyRank").textContent = currentRank || "-";
-      document.getElementById("rankingTotalPeople").textContent = intFmt.format(rows.length);
+      const container = document.getElementById("rankingPageGoalBlocks");
+      if (!container) return;
+      updateRankingDepartmentOptions();
+      const { period, department, query } = appState.rankingFilter;
+      const normalizedQuery = normalizeCode(query || "");
+      const rows = rankingRowsForPeriod(period)
+        .filter(item => !department || item.department === department)
+        .filter(item => {
+          const haystack = normalizeCode(`${item.code} ${item.name} ${item.department}`);
+          return !normalizedQuery || haystack.includes(normalizedQuery);
+        });
+      container.innerHTML = GOAL_DISTANCES.map(goal => {
+        const goalRows = rows
+          .filter(item => Number(item.goal) === goal)
+          .slice(0, 10);
+        return `
+          <section class="home-goal-card">
+            <h3>🏆 ${goal} KM <small>Top 10</small></h3>
+            <div style="overflow:auto">
+              <table>
+                <thead><tr><th>อันดับ</th><th>ชื่อ-นามสกุล</th><th>แผนก</th><th>ระยะทาง (กม.)</th></tr></thead>
+                <tbody>
+                  ${goalRows.map((item, index) => `
+                    <tr>
+                      <td><span class="rank ${rankClass(index)}">${index + 1}</span></td>
+                      <td><b>${item.name}</b></td>
+                      <td>${item.department || "-"}</td>
+                      <td><b class="orange-text">${fmt.format(item.total || 0)}</b></td>
+                    </tr>
+                  `).join("") || `<tr><td colspan="4" style="text-align:center">ยังไม่มีข้อมูลระยะ ${goal} KM</td></tr>`}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        `;
+      }).join("");
     }
 
     function registeredMap() {
@@ -1730,8 +1825,8 @@
       const el = document.getElementById("registrationWindowText");
       if (!el) return;
       el.textContent = isRegistrationOpen()
-        ? "เปิดรับสมัครถึงวันที่ 31 กรกฎาคม 2569"
-        : "ยังไม่อยู่ในช่วงรับสมัคร ระบบเปิดรับสมัครวันที่ 13 - 31 กรกฎาคม 2569";
+        ? "เปิดรับสมัครถึงวันที่ 31 กรกฎาคม 2026"
+        : "ยังไม่อยู่ในช่วงรับสมัคร ระบบเปิดรับสมัครวันที่ 13 - 31 กรกฎาคม 2026";
     }
 
     function upsertRegisteredUser(employee) {
@@ -2023,7 +2118,7 @@
     document.getElementById("registerForm").addEventListener("submit", async event => {
       event.preventDefault();
       if (!isRegistrationOpen()) {
-        return toast("ยังไม่อยู่ในช่วงรับสมัคร เปิดรับสมัครวันที่ 13 - 31 กรกฎาคม 2569");
+        return toast("ยังไม่อยู่ในช่วงรับสมัคร เปิดรับสมัครวันที่ 13 - 31 กรกฎาคม 2026");
       }
       const password = document.getElementById("password").value;
       const confirmPassword = document.getElementById("confirmPassword").value;
@@ -2166,6 +2261,22 @@
         document.getElementById("adminTitle").textContent = title;
         document.getElementById("adminSubtitle").textContent = subtitle;
       });
+    });
+
+    document.getElementById("rankingPeriodTabs")?.addEventListener("click", event => {
+      const button = event.target.closest("[data-ranking-period]");
+      if (!button) return;
+      appState.rankingFilter.period = button.dataset.rankingPeriod;
+      document.querySelectorAll("[data-ranking-period]").forEach(item => item.classList.toggle("active", item === button));
+      renderRankingPage();
+    });
+    document.getElementById("rankingDepartmentFilter")?.addEventListener("change", event => {
+      appState.rankingFilter.department = event.target.value;
+      renderRankingPage();
+    });
+    document.getElementById("rankingSearch")?.addEventListener("input", event => {
+      appState.rankingFilter.query = event.target.value;
+      renderRankingPage();
     });
 
     document.getElementById("adminEmployeeSearch").addEventListener("input", renderAdminEmployees);
