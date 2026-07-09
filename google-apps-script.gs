@@ -3,41 +3,43 @@ const CONFIG = {
   EMPLOYEES_SHEET: 'Employees',
   USERS_SHEET: 'Users',
   RUNS_SHEET: 'Runs',
-  OTP_SHEET: 'Otp',
   DRIVE_FOLDER_ID: '1GuVb0RtKR24dpBiJhO9ITSgrxCpg9J1-'
 };
 
-function doGet() {
-  return jsonOutput({
-    ok: true,
-    message: 'INVE BURN RUNNING 2026 API is running'
-  });
+function doGet(e) {
+  const params = e && e.parameter ? e.parameter : {};
+  const data = params.action
+    ? routeAction_(params)
+    : { ok: true, message: 'INVE BURN RUNNING 2026 API is running' };
+
+  if (params.callback) {
+    return ContentService
+      .createTextOutput(`${params.callback}(${JSON.stringify(data)})`)
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+
+  return jsonOutput(data);
 }
 
 function doPost(e) {
+  const body = JSON.parse(e.postData.contents || '{}');
+  return jsonOutput(routeAction_(body));
+}
+
+function routeAction_(body) {
   try {
-    const body = JSON.parse(e.postData.contents || '{}');
-    const action = body.action;
     const handlers = {
       lookupEmployee,
       register,
       login,
-      requestOtp,
-      resetPassword,
       addRun,
       getDashboard
     };
-
-    if (!handlers[action]) {
-      throw new Error('ไม่พบ action ที่ร้องขอ');
-    }
-
-    return jsonOutput(handlers[action](body));
+    const action = body.action;
+    if (!handlers[action]) throw new Error('ไม่พบ action ที่ร้องขอ');
+    return handlers[action](body);
   } catch (err) {
-    return jsonOutput({
-      ok: false,
-      message: err.message
-    });
+    return { ok: false, message: err.message };
   }
 }
 
@@ -46,18 +48,13 @@ function setupSheets() {
   ensureSheet_(ss, CONFIG.EMPLOYEES_SHEET, ['Emp ID', 'Prefix', 'FirstName', 'LastName', 'Department', 'Email', 'Status']);
   ensureSheet_(ss, CONFIG.USERS_SHEET, ['code', 'name', 'department', 'goal', 'passwordHash', 'registeredAt']);
   ensureSheet_(ss, CONFIG.RUNS_SHEET, ['id', 'code', 'name', 'department', 'distance', 'date', 'note', 'imageUrl', 'createdAt']);
-  ensureSheet_(ss, CONFIG.OTP_SHEET, ['code', 'otp', 'expiresAt', 'used', 'createdAt']);
 }
 
 function lookupEmployee(body) {
   const code = normalizeCode_(body.code || body.employeeCode);
   const employee = findEmployee_(code);
   if (!employee) throw new Error('ไม่พบรหัสพนักงานนี้');
-
-  return {
-    ok: true,
-    employee: employeeToDto_(employee)
-  };
+  return { ok: true, employee: employeeToDto_(employee) };
 }
 
 function register(body) {
@@ -65,7 +62,7 @@ function register(body) {
   const goal = Number(body.goal);
   const password = String(body.password || '');
 
-  if (!goal) throw new Error('กรุณาเลือกระยะกิโล');
+  if (![5, 7, 10].includes(goal)) throw new Error('กรุณาเลือกระยะ 5, 7 หรือ 10 KM');
   if (password.length < 6) throw new Error('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
 
   const employee = findEmployee_(code);
@@ -83,10 +80,7 @@ function register(body) {
     usersSheet.appendRow(userRow);
   }
 
-  return {
-    ok: true,
-    employee: buildUserSummary_(code)
-  };
+  return { ok: true, employee: buildUserSummary_(code) };
 }
 
 function login(body) {
@@ -105,48 +99,6 @@ function login(body) {
   };
 }
 
-function requestOtp(body) {
-  const code = normalizeCode_(body.code || body.employeeCode);
-  const employee = findEmployee_(code);
-  if (!employee) throw new Error('ไม่พบรหัสพนักงานนี้');
-
-  const otp = String(Math.floor(100000 + Math.random() * 900000));
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-  getSheet_(CONFIG.OTP_SHEET).appendRow([code, otp, expiresAt, false, new Date()]);
-
-  if (employee.email) {
-    MailApp.sendEmail({
-      to: employee.email,
-      subject: 'OTP เปลี่ยนรหัสผ่าน INVE BURN RUNNING 2026',
-      htmlBody: `<p>รหัส OTP ของคุณคือ <b>${otp}</b></p><p>รหัสนี้หมดอายุภายใน 10 นาที</p>`
-    });
-  }
-
-  return {
-    ok: true,
-    message: employee.email ? 'ส่ง OTP ไปยังอีเมลพนักงานแล้ว' : `สร้าง OTP แล้ว: ${otp}`
-  };
-}
-
-function resetPassword(body) {
-  const code = normalizeCode_(body.code || body.employeeCode);
-  const otp = String(body.otp || '').trim();
-  const newPassword = String(body.newPassword || '');
-
-  if (newPassword.length < 6) throw new Error('รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร');
-  validateOtp_(code, otp);
-
-  const usersSheet = getSheet_(CONFIG.USERS_SHEET);
-  const users = sheetToObjects_(usersSheet);
-  const userIndex = users.findIndex(row => normalizeCode_(row.code) === code);
-  if (userIndex < 0) throw new Error('ยังไม่ได้ลงทะเบียน');
-
-  usersSheet.getRange(userIndex + 2, 5).setValue(hashPassword_(newPassword));
-  markOtpUsed_(code, otp);
-
-  return { ok: true };
-}
-
 function addRun(body) {
   const code = normalizeCode_(body.code || body.employeeCode);
   const user = findUser_(code);
@@ -163,6 +115,7 @@ function addRun(body) {
     date: runDate,
     runNumber
   });
+
   getSheet_(CONFIG.RUNS_SHEET).appendRow([
     Utilities.getUuid(),
     user.code,
@@ -198,24 +151,12 @@ function getStats_() {
   const runs = sheetToObjects_(getSheet_(CONFIG.RUNS_SHEET));
   const totalDistance = runs.reduce((sum, row) => sum + Number(row.distance || 0), 0);
   const leaderboard = getLeaderboard_();
-  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  const todayRuns = runs.filter(row => Utilities.formatDate(new Date(row.date), Session.getScriptTimeZone(), 'yyyy-MM-dd') === today);
-  const todayByCode = todayRuns.reduce((map, row) => {
-    map[row.code] = (map[row.code] || 0) + Number(row.distance || 0);
-    return map;
-  }, {});
-  const todayTopCode = Object.keys(todayByCode).sort((a, b) => todayByCode[b] - todayByCode[a])[0];
-  const todayTop = todayTopCode ? users.find(row => row.code === todayTopCode) : leaderboard[0];
-
+  const top = leaderboard[0] || null;
   return {
     participants: users.length,
     totalDistance,
     averageDistance: users.length ? totalDistance / users.length : 0,
-    todayTop: todayTop ? {
-      code: todayTop.code,
-      name: todayTop.name,
-      distance: todayTopCode ? todayByCode[todayTopCode] : Number(todayTop.total || 0)
-    } : null
+    todayTop: top ? { code: top.code, name: top.name, distance: top.total } : null
   };
 }
 
@@ -228,24 +169,21 @@ function getLeaderboard_() {
     return map;
   }, {});
 
-  return users
-    .map(user => ({
-      code: user.code,
-      name: user.name,
-      department: user.department,
-      goal: Number(user.goal || 0),
-      total: Number(totals[normalizeCode_(user.code)] || 0)
-    }))
-    .sort((a, b) => b.total - a.total);
+  return users.map(user => ({
+    code: normalizeCode_(user.code),
+    name: user.name,
+    department: user.department,
+    goal: Number(user.goal || 0),
+    total: Number(totals[normalizeCode_(user.code)] || 0)
+  })).sort((a, b) => b.total - a.total);
 }
 
 function buildUserSummary_(code) {
   const user = findUser_(code);
   if (!user) throw new Error('ยังไม่ได้ลงทะเบียน');
   const total = getRunsByCode_(code).reduce((sum, row) => sum + Number(row.distance || 0), 0);
-
   return {
-    code: user.code,
+    code: normalizeCode_(user.code),
     name: user.name,
     department: user.department,
     goal: Number(user.goal || 0),
@@ -262,7 +200,7 @@ function getRunsByCode_(code) {
       cumulative += Number(row.distance || 0);
       return {
         id: row.id,
-        code: row.code,
+        code: normalizeCode_(row.code),
         distance: Number(row.distance || 0),
         date: row.date,
         note: row.note || '',
@@ -274,34 +212,14 @@ function getRunsByCode_(code) {
 }
 
 function findEmployee_(code) {
-  return sheetToObjects_(getSheet_(CONFIG.EMPLOYEES_SHEET))
-    .find(row => {
-      const employee = employeeToDto_(row);
-      return codeMatches_(employee.code, code) && String(employee.status || 'active').toLowerCase() !== 'inactive';
-    });
+  return sheetToObjects_(getSheet_(CONFIG.EMPLOYEES_SHEET)).find(row => {
+    const employee = employeeToDto_(row);
+    return codeMatches_(employee.code, code) && String(employee.status || 'active').toLowerCase() !== 'inactive';
+  });
 }
 
 function findUser_(code) {
-  return sheetToObjects_(getSheet_(CONFIG.USERS_SHEET))
-    .find(row => codeMatches_(row.code, code));
-}
-
-function validateOtp_(code, otp) {
-  const rows = sheetToObjects_(getSheet_(CONFIG.OTP_SHEET));
-  const match = rows
-    .map((row, index) => ({ ...row, rowNumber: index + 2 }))
-    .reverse()
-    .find(row => codeMatches_(row.code, code) && String(row.otp) === otp && String(row.used).toLowerCase() !== 'true');
-
-  if (!match) throw new Error('OTP ไม่ถูกต้อง');
-  if (new Date(match.expiresAt).getTime() < Date.now()) throw new Error('OTP หมดอายุแล้ว');
-}
-
-function markOtpUsed_(code, otp) {
-  const sheet = getSheet_(CONFIG.OTP_SHEET);
-  const rows = sheetToObjects_(sheet);
-  const index = rows.findIndex(row => codeMatches_(row.code, code) && String(row.otp) === otp && String(row.used).toLowerCase() !== 'true');
-  if (index >= 0) sheet.getRange(index + 2, 4).setValue(true);
+  return sheetToObjects_(getSheet_(CONFIG.USERS_SHEET)).find(row => codeMatches_(row.code, code));
 }
 
 function saveImage_(imageData, fileInfo) {
@@ -314,29 +232,19 @@ function saveImage_(imageData, fileInfo) {
   const extension = match[1] === 'image/png' ? 'png' : 'jpg';
   const dateText = Utilities.formatDate(new Date(fileInfo.date), Session.getScriptTimeZone(), 'yyyy-MM-dd');
   const safeName = sanitizeFileName_(`ครั้งที่ ${fileInfo.runNumber} ${fileInfo.code} ${fileInfo.name} ${dateText}.${extension}`);
-  const blob = Utilities.newBlob(
-    Utilities.base64Decode(match[2]),
-    match[1],
-    safeName
-  );
+  const blob = Utilities.newBlob(Utilities.base64Decode(match[2]), match[1], safeName);
   const file = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID).createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   return file.getUrl();
 }
 
 function sanitizeFileName_(fileName) {
-  return String(fileName)
-    .replace(/[\\/:*?"<>|#%{}~&]/g, '-')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return String(fileName).replace(/[\\/:*?"<>|#%{}~&]/g, '-').replace(/\s+/g, ' ').trim();
 }
 
 function hashPassword_(password) {
   const raw = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(password));
-  return raw.map(byte => {
-    const value = (byte + 256) % 256;
-    return value.toString(16).padStart(2, '0');
-  }).join('');
+  return raw.map(byte => ((byte + 256) % 256).toString(16).padStart(2, '0')).join('');
 }
 
 function normalizeCode_(code) {
@@ -347,9 +255,7 @@ function codeMatches_(left, right) {
   const leftCode = normalizeCode_(left);
   const rightCode = normalizeCode_(right);
   if (leftCode === rightCode) return true;
-  if (/^\d+$/.test(leftCode) && /^\d+$/.test(rightCode)) {
-    return Number(leftCode) === Number(rightCode);
-  }
+  if (/^\d+$/.test(leftCode) && /^\d+$/.test(rightCode)) return Number(leftCode) === Number(rightCode);
   return false;
 }
 
@@ -363,7 +269,6 @@ function employeeToDto_(row) {
   const email = getRowValue_(row, ['email', 'Email', 'อีเมล']);
   const status = getRowValue_(row, ['status', 'Status', 'สถานะ']);
   const name = explicitName || [prefix, firstName, lastName].filter(Boolean).join(' ').trim();
-
   return {
     code: normalizeCode_(code),
     prefix,
@@ -378,17 +283,13 @@ function employeeToDto_(row) {
 
 function getRowValue_(row, keys) {
   for (const key of keys) {
-    if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
-      return row[key];
-    }
+    if (row[key] !== undefined && row[key] !== null && row[key] !== '') return row[key];
   }
   return '';
 }
 
 function getSpreadsheet_() {
-  return CONFIG.SPREADSHEET_ID
-    ? SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID)
-    : SpreadsheetApp.getActive();
+  return CONFIG.SPREADSHEET_ID ? SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID) : SpreadsheetApp.getActive();
 }
 
 function getSheet_(name) {
@@ -399,9 +300,7 @@ function getSheet_(name) {
 
 function ensureSheet_(ss, name, headers) {
   const sheet = ss.getSheetByName(name) || ss.insertSheet(name);
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(headers);
-  }
+  if (sheet.getLastRow() === 0) sheet.appendRow(headers);
   return sheet;
 }
 
