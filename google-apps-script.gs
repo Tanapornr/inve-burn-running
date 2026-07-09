@@ -3,7 +3,9 @@ const CONFIG = {
   EMPLOYEES_SHEET: 'Employees',
   USERS_SHEET: 'Users',
   RUNS_SHEET: 'Runs',
-  DRIVE_FOLDER_ID: '1GuVb0RtKR24dpBiJhO9ITSgrxCpg9J1-'
+  DRIVE_FOLDER_ID: '1GuVb0RtKR24dpBiJhO9ITSgrxCpg9J1-',
+  REGISTRATION_START: new Date('2026-07-13T00:00:00+07:00'),
+  REGISTRATION_END: new Date('2026-07-31T23:59:59+07:00')
 };
 
 function doGet(e) {
@@ -62,7 +64,9 @@ function register(body) {
   const goal = Number(body.goal);
   const password = String(body.password || '');
 
-  if (![5, 7, 10].includes(goal)) throw new Error('กรุณาเลือกระยะ 5, 7 หรือ 10 KM');
+  const now = new Date();
+  if (now < CONFIG.REGISTRATION_START || now > CONFIG.REGISTRATION_END) throw new Error('ยังไม่อยู่ในช่วงรับสมัคร เปิดรับสมัครวันที่ 13 - 31 กรกฎาคม 2569');
+  if (![10, 20].includes(goal)) throw new Error('กรุณาเลือกระยะ 10 หรือ 20 KM');
   if (password.length < 6) throw new Error('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
 
   const employee = findEmployee_(code);

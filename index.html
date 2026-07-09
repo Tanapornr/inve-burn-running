@@ -310,7 +310,7 @@
 
     .live { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
     .live::before { content: ""; width: 11px; height: 11px; background: #ff2323; border-radius: 50%; box-shadow: 0 0 0 4px rgba(255,35,35,.12); }
-    .home-goal-rankings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; padding: 22px; }
+    .home-goal-rankings { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 18px; padding: 22px; }
     .home-goal-card { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: #fff; box-shadow: 0 12px 28px rgba(0,31,85,.06); }
     .home-goal-card h3 { margin: 0; padding: 14px 16px; font-size: 20px; background: #f3f7ff; color: var(--navy); display: flex; justify-content: space-between; align-items: center; }
     .home-goal-card h3 small { color: var(--muted); font-size: 12px; }
@@ -415,7 +415,7 @@
     input[readonly] { background: #f4f7fb; color: #7a889e; }
     .helper { color: #7a889e; font-size: 13px; margin-top: 6px; }
     .inline-ok { display: inline-flex; align-items: center; gap: 8px; color: #098b4a; font-weight: 800; margin-left: 12px; }
-    .distance-options { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+    .distance-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
     .distance-option {
       border: 1px solid #cbd6e6;
       border-radius: 8px;
@@ -570,6 +570,10 @@
     .status-on { background: #e8f9ee; color: #0b8f42; }
     .status-off { background: #fff3e7; color: #f15a24; }
     .goal-blocks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 18px; }
+    .ranking-layout, .contact-layout { display: grid; grid-template-columns: 1.4fr .8fr; gap: 18px; }
+    .ranking-hero, .contact-hero { min-height: 190px; border-radius: 16px; margin-top: 18px; overflow: hidden; }
+    .contact-card { display: grid; grid-template-columns: 64px 1fr; gap: 16px; align-items: center; padding: 20px; }
+    .help-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 
     @media (max-width: 1200px) {
       .container { width: min(100% - 36px, 1100px); }
@@ -580,7 +584,8 @@
       .menu { display: none; }
       .admin-layout { grid-template-columns: 1fr; }
       .admin-sidebar { position: static; }
-      .admin-card-grid, .goal-blocks { grid-template-columns: 1fr 1fr; }
+      .admin-card-grid, .goal-blocks, .help-grid { grid-template-columns: 1fr 1fr; }
+      .ranking-layout, .contact-layout { grid-template-columns: 1fr; }
       .home-goal-rankings { grid-template-columns: 1fr; }
     }
 
@@ -600,7 +605,7 @@
       th:nth-child(4), td:nth-child(4) { display: none; }
       .footer-inner { flex-direction: column; align-items: flex-start; padding: 18px 0; }
       .admin-main { padding: 22px 16px 90px; }
-      .admin-card-grid, .goal-blocks { grid-template-columns: 1fr; }
+      .admin-card-grid, .goal-blocks, .help-grid { grid-template-columns: 1fr; }
       .home-goal-rankings { padding: 12px; }
     }
   </style>
@@ -615,11 +620,9 @@
       </a>
       <nav class="menu">
         <a href="#home" class="active" data-page-link="home">⌂ หน้าแรก</a>
+        <a href="#ranking" data-page-link="ranking">อันดับ</a>
         <a href="#about" data-page-link="about">เกี่ยวกับกิจกรรม</a>
-        <a href="#ranking">อันดับ</a>
-        <a href="#news">ข่าวสาร</a>
-        <a href="#faq">FAQ</a>
-        <a href="#contact">◎ ติดต่อเรา</a>
+        <a href="#contact" data-page-link="contact">ติดต่อเรา</a>
         <a href="#admin-login" data-page-link="adminLogin">ผู้ดูแลระบบ</a>
       </nav>
       <div class="nav-actions" id="guestActions">
@@ -667,7 +670,7 @@
           <div class="panel-head"><span>🏆 อันดับผู้วิ่งระยะทางสะสมแยกตามกิโลเมตร</span><span class="live">LIVE</span></div>
           <div class="home-goal-rankings" id="leaderboardRows"></div>
           <div class="panel-body" style="text-align:center;padding-top:12px">
-            <button class="btn btn-ghost">ดูอันดับทั้งหมด →</button>
+            <button class="btn btn-ghost" data-page-link="ranking">ดูอันดับทั้งหมด →</button>
           </div>
         </section>
 
@@ -681,7 +684,10 @@
             <h2>📋 กติกา / วิธีการเข้าร่วม</h2>
             <ul class="check-list">
               <li>กิจกรรมนี้สำหรับพนักงาน INVE ทุกคน</li>
-              <li>สะสมระยะการวิ่ง ตั้งแต่วันที่ 1 ม.ค. – 31 ธ.ค. 2026</li>
+              <li>เปิดรับสมัครลงทะเบียน วันที่ 13 - 31 กรกฎาคม 2569</li>
+              <li>ระบบจะปิดรับสมัครอัตโนมัติเมื่อพ้นช่วงเวลารับสมัคร</li>
+              <li>สะสมระยะการวิ่ง ตั้งแต่วันที่ 1 สิงหาคม - 15 สิงหาคม 2026</li>
+              <li>ระยะทางมีให้เลือก 10 กิโลเมตร และ 20 กิโลเมตร</li>
               <li>บันทึกระยะการวิ่งผ่านแอปหรืออุปกรณ์ที่รองรับ เช่น Strava, Garmin, Apple Health, Google Fit</li>
               <li>ระยะจะถูกนับเฉพาะกิจกรรมวิ่งเท่านั้น ไม่นับรวมการเดินหรือกิจกรรมอื่น</li>
               <li>สามารถบันทึกระยะได้ไม่จำกัดจำนวนครั้ง</li>
@@ -691,6 +697,69 @@
           </div>
         </section>
 
+      </div>
+    </section>
+
+    <section class="page" id="rankingPage">
+      <div class="container">
+        <div class="hero ranking-hero">
+          <div class="skyline"></div>
+          <div class="container hero-content">
+            <div>
+              <h1 style="font-style:normal">อันดับนักวิ่ง</h1>
+              <p>ติดตามผลการสะสมระยะวิ่งของพนักงานแบบเรียลไทม์</p>
+            </div>
+          </div>
+        </div>
+        <div class="ranking-layout section-space">
+          <section class="panel">
+            <div class="panel-head"><span>🏆 อันดับรวมทั้งหมด</span><span class="live">LIVE</span></div>
+            <div style="overflow:auto">
+              <table>
+                <thead><tr><th>อันดับ</th><th>ชื่อ-นามสกุล</th><th>แผนก</th><th>ระยะทาง (กม.)</th></tr></thead>
+                <tbody id="rankingPageRows"></tbody>
+              </table>
+            </div>
+          </section>
+          <aside class="panel mini-card">
+            <h3>อันดับของฉัน</h3>
+            <div style="border:1px solid var(--line);border-radius:12px;padding:22px;text-align:center">
+              <small>อันดับปัจจุบัน</small>
+              <div class="stat-value" id="rankingMyRank">-</div>
+              <small>จากผู้ลงทะเบียนทั้งหมด <span id="rankingTotalPeople">0</span> คน</small>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="contactPage">
+      <div class="hero contact-hero">
+        <div class="skyline"></div>
+        <div class="container hero-content">
+          <div>
+            <h1 style="font-style:normal">ติดต่อเรา</h1>
+            <p>สอบถามข้อมูลกิจกรรม INVE BURN RUNNING 2026</p>
+          </div>
+        </div>
+      </div>
+      <div class="container section-space contact-layout">
+        <section class="panel">
+          <div class="panel-body">
+            <div class="contact-card"><span class="icon-circle icon-blue">📍</span><div><h3>ที่อยู่</h3><p>บริษัท อินเว จำกัด<br>333 ถนนวิภาวดีรังสิต แขวงจอมพล เขตจตุจักร กรุงเทพมหานคร 10900</p></div></div>
+            <div class="contact-card"><span class="icon-circle icon-orange">☎</span><div><h3>เบอร์โทรศัพท์</h3><p>02-273-8888 ต่อ 12345</p></div></div>
+            <div class="contact-card"><span class="icon-circle icon-blue">✉</span><div><h3>อีเมล</h3><p>info@inveburnrunning.com</p></div></div>
+          </div>
+        </section>
+        <aside class="panel">
+          <div class="panel-body">
+            <h2>ต้องการช่วยเหลือเพิ่มเติม?</h2>
+            <div class="help-grid">
+              <button class="btn btn-ghost">📘 คู่มือกิจกรรม</button>
+              <button class="btn btn-outline">ติดต่อผู้ดูแล</button>
+            </div>
+          </div>
+        </aside>
       </div>
     </section>
 
@@ -758,6 +827,7 @@
               </div>
             </div>
             <button class="btn btn-navy" style="width:min(520px,100%);margin:28px auto 0;display:flex">🏃 สมัครเข้าร่วม</button>
+            <p class="helper" id="registrationWindowText" style="text-align:center"></p>
             <p style="text-align:center;margin:10px 0 0">มีบัญชีอยู่แล้ว? <a class="muted-link" href="#login" data-page-link="login">เข้าสู่ระบบ</a></p>
           </form>
 
@@ -969,7 +1039,7 @@
           <div class="admin-top">
             <div>
               <h1 id="adminTitle" style="margin:0">อันดับแยกตามกิโลเมตร</h1>
-              <p class="helper" id="adminSubtitle">Top 10 แยกตามเป้าหมาย 5 KM, 7 KM และ 10 KM</p>
+              <p class="helper" id="adminSubtitle">Top 10 แยกตามเป้าหมาย 10 KM และ 20 KM</p>
             </div>
             <div class="user-mini">
               <div class="bell">🔔<span>3</span></div>
@@ -1037,7 +1107,7 @@
   <footer class="footer">
     <div class="container footer-inner">
       <div><strong>INVE BURN RUNNING 2026</strong><small>วิ่งด้วยกัน สุขภาพดีไปด้วยกัน ก้าวไปสู่เป้าหมายเดียวกัน</small></div>
-      <div><a href="#privacy">นโยบายความเป็นส่วนตัว</a> &nbsp; | &nbsp; <a href="#terms">เงื่อนไขการใช้งาน</a> &nbsp; | &nbsp; <a href="#contact">ติดต่อเรา</a></div>
+      <div><a href="#privacy">นโยบายความเป็นส่วนตัว</a> &nbsp; | &nbsp; <a href="#terms">เงื่อนไขการใช้งาน</a> &nbsp; | &nbsp; <a href="#contact" data-page-link="contact">ติดต่อเรา</a></div>
       <div>© 2026 INVE Company Limited. All rights reserved.</div>
       <div class="social"><span>f</span><span>LINE</span><span>✉</span></div>
     </div>
@@ -1053,23 +1123,25 @@
       employeesSheetName: "Employees"
     };
     const LOCAL_REGISTRATIONS_KEY = "inveBurnRegistrations";
+    const GOAL_DISTANCES = [10, 20];
+    const REGISTRATION_START = new Date("2026-07-13T00:00:00+07:00");
+    const REGISTRATION_END = new Date("2026-07-31T23:59:59+07:00");
 
     const distanceChoices = [
-      { value: 5, label: "เริ่มต้นเบา ๆ" },
-      { value: 7, label: "ท้าทายกำลังดี" },
-      { value: 10, label: "พิชิตสิบกิโล" }
+      { value: 10, label: "พิชิตสิบกิโล" },
+      { value: 20, label: "ท้าทายยี่สิบกิโล" }
     ];
 
     const demoEmployees = [
-      { code: "018", name: "นาย มารุต ทับหุ่น", department: "Production", password: "123456", goal: 200, total: 128.50 },
-      { code: "EMP000123", name: "อภิชาติ วงศ์ไทย", department: "เทคโนโลยีสารสนเทศ", password: "123456", goal: 500, total: 525.34 },
-      { code: "EMP000456", name: "ณัฐวุฒิ ศรีสมบัติ", department: "วิศวกรรม", password: "123456", goal: 200, total: 128.50 },
-      { code: "EMP000789", name: "ปาริฉัตร แสงทอง", department: "การตลาด", password: "123456", goal: 300, total: 439.27 },
-      { code: "EMP000321", name: "ธนกฤต วัฒนธรรม", department: "บัญชีและการเงิน", password: "123456", goal: 200, total: 412.65 },
-      { code: "EMP000654", name: "ศศิธร จันทร์เพ็ญ", department: "ทรัพยากรบุคคล", password: "123456", goal: 100, total: 387.40 },
-      { code: "EMP000987", name: "กฤษฎา พงษ์ไพศาล", department: "ปฏิบัติการ", password: "123456", goal: 200, total: 356.22 },
-      { code: "EMP000111", name: "วัชรินทร์ แซ่หวัง", department: "จัดซื้อและซัพพลายเชน", password: "123456", goal: 100, total: 314.75 },
-      { code: "EMP000222", name: "อนันต์ ชัยประเสริฐ", department: "บริการลูกค้า", password: "123456", goal: 50, total: 298.51 }
+      { code: "018", name: "นาย มารุต ทับหุ่น", department: "Production", password: "123456", goal: 20, total: 128.50 },
+      { code: "EMP000123", name: "อภิชาติ วงศ์ไทย", department: "เทคโนโลยีสารสนเทศ", password: "123456", goal: 20, total: 525.34 },
+      { code: "EMP000456", name: "ณัฐวุฒิ ศรีสมบัติ", department: "วิศวกรรม", password: "123456", goal: 10, total: 128.50 },
+      { code: "EMP000789", name: "ปาริฉัตร แสงทอง", department: "การตลาด", password: "123456", goal: 20, total: 439.27 },
+      { code: "EMP000321", name: "ธนกฤต วัฒนธรรม", department: "บัญชีและการเงิน", password: "123456", goal: 10, total: 412.65 },
+      { code: "EMP000654", name: "ศศิธร จันทร์เพ็ญ", department: "ทรัพยากรบุคคล", password: "123456", goal: 10, total: 387.40 },
+      { code: "EMP000987", name: "กฤษฎา พงษ์ไพศาล", department: "ปฏิบัติการ", password: "123456", goal: 20, total: 356.22 },
+      { code: "EMP000111", name: "วัชรินทร์ แซ่หวัง", department: "จัดซื้อและซัพพลายเชน", password: "123456", goal: 10, total: 314.75 },
+      { code: "EMP000222", name: "อนันต์ ชัยประเสริฐ", department: "บริการลูกค้า", password: "123456", goal: 20, total: 298.51 }
     ];
 
     const demoRuns = [
@@ -1590,7 +1662,7 @@
 
     function renderLeaderboard() {
       const allRegisteredUsers = [...appState.allRegisteredUsers].sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
-      document.getElementById("leaderboardRows").innerHTML = [5, 7, 10].map(goal => {
+      document.getElementById("leaderboardRows").innerHTML = GOAL_DISTANCES.map(goal => {
         const rows = allRegisteredUsers
           .filter(item => Number(item.goal) === goal)
           .slice(0, 10);
@@ -1620,6 +1692,22 @@
       document.getElementById("todayTopList").innerHTML = registeredUsers.slice(0, 5).map((item, index) => `
         <li><span class="rank ${rankClass(index)}">${index + 1}</span><b>${item.name}</b><b class="orange-text">${fmt.format(item.total || 0)} กม.</b></li>
       `).join("") || `<li style="display:block;color:#6f7f99">ยังไม่มีข้อมูลอันดับ</li>`;
+      renderRankingPage();
+    }
+
+    function renderRankingPage() {
+      const rows = [...appState.allRegisteredUsers].sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
+      const currentRank = appState.currentUser ? rows.findIndex(item => codeMatches(item.code, appState.currentUser.code)) + 1 : 0;
+      document.getElementById("rankingPageRows").innerHTML = rows.map((item, index) => `
+        <tr>
+          <td><span class="rank ${rankClass(index)}">${index + 1}</span></td>
+          <td><b>${item.name}</b></td>
+          <td>${item.department || "-"}</td>
+          <td><b class="orange-text">${fmt.format(item.total || 0)}</b></td>
+        </tr>
+      `).join("") || `<tr><td colspan="4" style="text-align:center">ยังไม่มีข้อมูลอันดับ</td></tr>`;
+      document.getElementById("rankingMyRank").textContent = currentRank || "-";
+      document.getElementById("rankingTotalPeople").textContent = intFmt.format(rows.length);
     }
 
     function registeredMap() {
@@ -1631,6 +1719,18 @@
 
     function findRegisteredUser(code) {
       return appState.allRegisteredUsers.find(user => codeMatches(user.code, code));
+    }
+
+    function isRegistrationOpen(now = new Date()) {
+      return now >= REGISTRATION_START && now <= REGISTRATION_END;
+    }
+
+    function updateRegistrationWindowUi() {
+      const el = document.getElementById("registrationWindowText");
+      if (!el) return;
+      el.textContent = isRegistrationOpen()
+        ? "เปิดรับสมัครถึงวันที่ 31 กรกฎาคม 2569"
+        : "ยังไม่อยู่ในช่วงรับสมัคร ระบบเปิดรับสมัครวันที่ 13 - 31 กรกฎาคม 2569";
     }
 
     function upsertRegisteredUser(employee) {
@@ -1726,7 +1826,7 @@
         ["▱", "ระยะทางรวม", `${fmt.format(totalDistance)} กม.`, "รวมทุกแผนก", "icon-blue"],
         ["👥", "ผู้ร่วมกิจกรรม", `${intFmt.format(registered.length)} คน`, "ลงทะเบียนแล้ว", "icon-orange"],
         ["🏃", "ระยะเฉลี่ยต่อคน", `${fmt.format(registered.length ? totalDistance / registered.length : 0)} กม.`, "จากผลวิ่งทั้งหมด", "icon-blue"],
-        ["🎯", "เป้าหมายที่ใช้", "5 / 7 / 10 KM", "แยกอันดับตามระยะ", "icon-red"]
+        ["🎯", "เป้าหมายที่ใช้", "10 / 20 KM", "แยกอันดับตามระยะ", "icon-red"]
       ].map(adminStatCard).join("");
 
       const departmentRows = Object.values(registered.reduce((map, user) => {
@@ -1741,7 +1841,7 @@
         <tr><td>${row.department}</td><td>${intFmt.format(row.count)} คน</td><td><b class="orange-text">${fmt.format(row.total)} กม.</b></td><td>${fmt.format(row.count ? row.total / row.count : 0)} กม.</td></tr>
       `).join("") || `<tr><td colspan="4" style="text-align:center">ยังไม่มีข้อมูล</td></tr>`;
 
-      document.getElementById("goalReportRows").innerHTML = [5, 7, 10].map(goal => {
+      document.getElementById("goalReportRows").innerHTML = GOAL_DISTANCES.map(goal => {
         const group = registered.filter(user => Number(user.goal) === goal);
         const total = group.reduce((sum, user) => sum + Number(user.total || 0), 0);
         return `<tr><td>${goal} KM</td><td>${intFmt.format(group.length)} คน</td><td><b class="orange-text">${fmt.format(total)} กม.</b></td><td>${fmt.format(group.length ? total / group.length : 0)} กม.</td></tr>`;
@@ -1749,7 +1849,7 @@
     }
 
     function renderGoalRankings() {
-      document.getElementById("goalRankingBlocks").innerHTML = [5, 7, 10].map(goal => {
+      document.getElementById("goalRankingBlocks").innerHTML = GOAL_DISTANCES.map(goal => {
         const rows = appState.allRegisteredUsers
           .filter(user => Number(user.goal) === goal)
           .sort((a, b) => b.total - a.total)
@@ -1769,8 +1869,8 @@
 
     function renderDistanceOptions() {
       document.getElementById("distanceOptions").innerHTML = distanceChoices.map((item, index) => `
-        <label class="distance-option ${index === 1 ? "active" : ""}">
-          <input type="radio" name="goal" value="${item.value}" ${index === 1 ? "checked" : ""}>
+        <label class="distance-option ${index === 0 ? "active" : ""}">
+          <input type="radio" name="goal" value="${item.value}" ${index === 0 ? "checked" : ""}>
           <span>👟</span>
           <span><strong>${item.value} KM</strong><small>${item.label}</small></span>
         </label>
@@ -1921,6 +2021,9 @@
 
     document.getElementById("registerForm").addEventListener("submit", async event => {
       event.preventDefault();
+      if (!isRegistrationOpen()) {
+        return toast("ยังไม่อยู่ในช่วงรับสมัคร เปิดรับสมัครวันที่ 13 - 31 กรกฎาคม 2569");
+      }
       const password = document.getElementById("password").value;
       const confirmPassword = document.getElementById("confirmPassword").value;
       if (!appState.selectedEmployee || !codeMatches(appState.selectedEmployee.code, document.getElementById("employeeCode").value)) {
@@ -2056,7 +2159,7 @@
           adminDashboard: ["แดชบอร์ดผู้ดูแลระบบ", "ภาพรวมการจัดกิจกรรม INVE BURN RUNNING 2026"],
           adminEmployees: ["จัดการพนักงาน", "แสดงรายชื่อพนักงานและสถานะลงทะเบียน"],
           adminReports: ["รายงานสรุป", "สรุปตามแผนกและเป้าหมายกิโลเมตร"],
-          adminRankings: ["อันดับแยกตามกิโลเมตร", "Top 10 แยกตามเป้าหมาย 5 KM, 7 KM และ 10 KM"]
+          adminRankings: ["อันดับแยกตามกิโลเมตร", "Top 10 แยกตามเป้าหมาย 10 KM และ 20 KM"]
         };
         const [title, subtitle] = titles[button.dataset.adminView] || titles.adminRankings;
         document.getElementById("adminTitle").textContent = title;
@@ -2081,6 +2184,7 @@
     async function init() {
       document.getElementById("runDate").valueAsDate = new Date();
       renderDistanceOptions();
+      updateRegistrationWindowUi();
       try {
         if (!CONFIG.demoMode) {
           await loadEmployeesFromSheet(true);
