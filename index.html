@@ -283,7 +283,7 @@
 
     .home-layout {
       display: grid;
-      grid-template-columns: 1.55fr .85fr;
+      grid-template-columns: 1fr;
       gap: 16px;
       padding-bottom: 10px;
     }
@@ -303,7 +303,7 @@
 
     .live { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
     .live::before { content: ""; width: 11px; height: 11px; background: #ff2323; border-radius: 50%; box-shadow: 0 0 0 4px rgba(255,35,35,.12); }
-    .home-goal-rankings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 18px; }
+    .home-goal-rankings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; padding: 22px; }
     .home-goal-card { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: #fff; box-shadow: 0 12px 28px rgba(0,31,85,.06); }
     .home-goal-card h3 { margin: 0; padding: 14px 16px; font-size: 20px; background: #f3f7ff; color: var(--navy); display: flex; justify-content: space-between; align-items: center; }
     .home-goal-card h3 small { color: var(--muted); font-size: 12px; }
@@ -607,7 +607,7 @@
       </a>
       <nav class="menu">
         <a href="#home" class="active" data-page-link="home">⌂ หน้าแรก</a>
-        <a href="#about">เกี่ยวกับกิจกรรม</a>
+        <a href="#about" data-page-link="about">เกี่ยวกับกิจกรรม</a>
         <a href="#ranking">อันดับ</a>
         <a href="#news">ข่าวสาร</a>
         <a href="#faq">FAQ</a>
@@ -663,7 +663,12 @@
           </div>
         </section>
 
-        <aside class="panel rules" id="about">
+      </div>
+    </section>
+
+    <section class="page" id="aboutPage">
+      <div class="container section-space">
+        <section class="panel rules" id="about">
           <div class="panel-body">
             <h2>📋 กติกา / วิธีการเข้าร่วม</h2>
             <ul class="check-list">
@@ -676,7 +681,8 @@
             </ul>
             <button class="btn btn-outline" style="width:100%;margin-top:24px">⇩ ดาวน์โหลดคู่มือกิจกรรม (PDF)</button>
           </div>
-        </aside>
+        </section>
+
       </div>
     </section>
 
@@ -1072,9 +1078,12 @@
       allRegisteredUsers: [],
       currentUser: null,
       runs: CONFIG.demoMode ? [...demoRuns] : [],
+      allRuns: CONFIG.demoMode ? [...demoRuns] : [],
       selectedEmployee: null,
       isAdmin: false
     };
+    let refreshInFlight = false;
+    let refreshTimer = null;
 
     const fmt = new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const intFmt = new Intl.NumberFormat("th-TH");
@@ -1301,7 +1310,15 @@
 
       appState.allRegisteredUsers = sheetRegisteredUsers.sort((a, b) => b.total - a.total);
       appState.registeredUsers = appState.allRegisteredUsers.slice(0, 10);
-      appState.runs = runs;
+      appState.allRuns = runs;
+      if (appState.currentUser) {
+        const latestUser = appState.allRegisteredUsers.find(user => codeMatches(user.code, appState.currentUser.code)) || appState.currentUser;
+        const refreshed = buildLoginResultFromUser({ ...appState.currentUser, ...latestUser }, runs);
+        appState.currentUser = refreshed.employee;
+        appState.runs = refreshed.runs;
+      } else {
+        appState.runs = runs;
+      }
       return appState.registeredUsers;
     }
 
@@ -1611,7 +1628,7 @@
       document.getElementById("adminStats").innerHTML = [
         ["👥", "ผู้เข้าร่วมทั้งหมด", `${intFmt.format(registered.length)} คน`, "ลงทะเบียนในชีต Users", "icon-blue"],
         ["👟", "ระยะทางรวมทั้งหมด", `${fmt.format(totalDistance)} กม.`, "รวมจากชีต Runs", "icon-orange"],
-        ["📋", "รายการผลการวิ่ง", `${intFmt.format(appState.runs.length)} รายการ`, "ข้อมูลที่บันทึกจริง", "icon-red"],
+        ["📋", "รายการผลการวิ่ง", `${intFmt.format(appState.allRuns.length)} รายการ`, "ข้อมูลที่บันทึกจริง", "icon-red"],
         ["🏢", "แผนกทั้งหมด", `${intFmt.format(departments.length)} แผนก`, "อ้างอิงจากชีต Employees", "icon-blue"]
       ].map(adminStatCard).join("");
 
@@ -1740,7 +1757,33 @@
       document.getElementById(`${page}Page`).classList.add("active");
       document.querySelectorAll("[data-page-link]").forEach(item => item.classList.toggle("active", item.dataset.pageLink === page));
       if (page === "admin") renderAdmin();
+      refreshLiveData();
       window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    async function refreshLiveData() {
+      if (CONFIG.demoMode || refreshInFlight) return;
+      refreshInFlight = true;
+      try {
+        await loadEmployeesFromSheet(true);
+        await loadRegisteredDataFromSheet();
+        renderStats();
+        renderLeaderboard();
+        if (appState.currentUser) {
+          updateAuthUi();
+          renderDashboard();
+        }
+        renderAdmin();
+      } catch (err) {
+        console.warn("Realtime refresh failed", err);
+      } finally {
+        refreshInFlight = false;
+      }
+    }
+
+    function startRealtimeUpdates() {
+      if (CONFIG.demoMode || refreshTimer) return;
+      refreshTimer = window.setInterval(refreshLiveData, 10000);
     }
 
     function updateAuthUi() {
@@ -2014,6 +2057,7 @@
       renderLeaderboard();
       renderDashboard();
       renderAdmin();
+      startRealtimeUpdates();
     }
 
     init();
