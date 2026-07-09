@@ -1149,6 +1149,11 @@
       { value: 20, label: "ท้าทายยี่สิบกิโล" }
     ];
 
+    function normalizeGoalDistance(goal) {
+      const value = Number(goal || 0);
+      return GOAL_DISTANCES.includes(value) ? value : 10;
+    }
+
     const demoEmployees = [
       { code: "018", name: "นาย มารุต ทับหุ่น", department: "Production", password: "123456", goal: 20, total: 128.50 },
       { code: "EMP000123", name: "อภิชาติ วงศ์ไทย", department: "เทคโนโลยีสารสนเทศ", password: "123456", goal: 20, total: 525.34 },
@@ -1241,7 +1246,7 @@
             ok: true,
             employee: {
               ...appState.selectedEmployee,
-              goal: Number(payload.goal || 0),
+              goal: normalizeGoalDistance(payload.goal),
               total: 0
             }
           };
@@ -1318,7 +1323,7 @@
         code,
         name: employee.name || "-",
         department: employee.department || "-",
-        goal: Number(employee.goal || 0),
+        goal: normalizeGoalDistance(employee.goal),
         passwordHash: await sha256(password),
         registeredAt: new Date().toISOString(),
         total: Number(employee.total || 0)
@@ -1340,7 +1345,7 @@
       try {
         const user = JSON.parse(localStorage.getItem(CURRENT_USER_KEY) || "null");
         if (user?.code) {
-          appState.currentUser = user;
+          appState.currentUser = { ...user, goal: normalizeGoalDistance(user.goal) };
         }
       } catch (err) {
         localStorage.removeItem(CURRENT_USER_KEY);
@@ -1403,7 +1408,7 @@
           code: normalizeCode(row.code),
           name: row.name || "-",
           department: row.department || "-",
-          goal: Number(row.goal || 0),
+          goal: normalizeGoalDistance(row.goal),
           total: Number(row.total ?? totals[normalizeCode(row.code)] ?? 0)
         }));
 
@@ -1413,7 +1418,7 @@
             code: normalizeCode(localUser.code),
             name: localUser.name || "-",
             department: localUser.department || "-",
-            goal: Number(localUser.goal || 0),
+            goal: normalizeGoalDistance(localUser.goal),
             total: Number(totals[normalizeCode(localUser.code)] || localUser.total || 0)
           });
         }
@@ -1514,7 +1519,7 @@
           code: normalizeCode(user.code),
           name: user.name || "-",
           department: user.department || "-",
-          goal: Number(user.goal || 0),
+          goal: normalizeGoalDistance(user.goal),
           total: cumulative
         },
         runs: userRuns
@@ -1530,7 +1535,7 @@
       const optimisticEmployee = {
         ...appState.selectedEmployee,
         code,
-        goal: Number(payload.goal || 0),
+        goal: normalizeGoalDistance(payload.goal),
         total: 0
       };
 
@@ -1652,7 +1657,7 @@
       }
       if (action === "register") {
         if (!employee) throw new Error("ไม่พบข้อมูลพนักงาน");
-        Object.assign(employee, { password: payload.password, goal: Number(payload.goal) });
+        Object.assign(employee, { password: payload.password, goal: normalizeGoalDistance(payload.goal) });
         return { ok: true, employee };
       }
       if (action === "login") {
@@ -1866,7 +1871,7 @@
         ...employee,
         code: normalizeCode(employee.code),
         total: Number(employee.total || 0),
-        goal: Number(employee.goal || 0)
+        goal: normalizeGoalDistance(employee.goal)
       };
       const exists = appState.allRegisteredUsers.some(item => codeMatches(item.code, normalizedEmployee.code));
       appState.allRegisteredUsers = exists
@@ -2061,7 +2066,7 @@
     function renderDashboard() {
       const user = appState.currentUser;
       if (!user) return;
-      const goal = Number(user.goal || 10);
+      const goal = normalizeGoalDistance(user.goal);
       const total = Number(user.total || 0);
       const percent = Math.min(100, Math.round(total / goal * 100));
       const remain = Math.max(0, goal - total);
