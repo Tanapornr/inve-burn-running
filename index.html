@@ -535,6 +535,7 @@
       padding: 14px;
     }
     .upload-preview { width: 96px; height: 78px; object-fit: cover; border-radius: 8px; }
+    .upload-selected { align-self: center; color: #098b4a; font-weight: 850; }
     .record-layout { display: grid; grid-template-columns: 110px 1fr; gap: 16px; }
     .mini-card { padding: 22px; margin-bottom: 18px; }
     .top-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
@@ -960,9 +961,10 @@
               <label>อัปโหลดรูปหลักฐานการวิ่ง</label>
               <div class="record-layout">
                 <img class="upload-preview" id="runPreview" alt="ตัวอย่างรูป" src="" style="display:none">
-                <label class="upload-box" for="runImage">
+                <label class="upload-box" id="runUploadBox" for="runImage">
                   <span>ลากไฟล์มาวางที่นี่<br>หรือ <b class="muted-link">คลิกเพื่อเลือกไฟล์</b><br><small>รองรับ JPG, JPEG, PNG ไม่เกิน 5MB</small></span>
                 </label>
+                <div class="upload-selected" id="runUploadStatus" style="display:none">✅ อัปโหลดรูปแล้ว 1 รูป</div>
               </div>
               <input type="file" id="runImage" accept="image/png,image/jpeg" hidden>
               <div class="field-grid" style="margin-top:16px">
@@ -2050,27 +2052,34 @@
       }
     });
 
+    function resetRunUploadUi() {
+      document.getElementById("runPreview").style.display = "none";
+      document.getElementById("runPreview").src = "";
+      document.getElementById("runUploadBox").style.display = "grid";
+      document.getElementById("runUploadStatus").style.display = "none";
+      document.getElementById("runImage").value = "";
+    }
+
     document.getElementById("runImage").addEventListener("change", event => {
       if (event.target.files.length > 1) {
-        event.target.value = "";
-        document.getElementById("runPreview").style.display = "none";
+        resetRunUploadUi();
         return toast("อัปโหลดได้ครั้งละ 1 รูปเท่านั้น");
       }
       const file = event.target.files[0];
       if (!file) return;
       if (!["image/jpeg", "image/png"].includes(file.type)) {
-        event.target.value = "";
-        document.getElementById("runPreview").style.display = "none";
+        resetRunUploadUi();
         return toast("รองรับเฉพาะไฟล์ JPG, JPEG หรือ PNG");
       }
       if (file.size > 5 * 1024 * 1024) {
-        event.target.value = "";
-        document.getElementById("runPreview").style.display = "none";
+        resetRunUploadUi();
         return toast("ขนาดไฟล์ต้องไม่เกิน 5MB");
       }
       const preview = document.getElementById("runPreview");
       preview.src = URL.createObjectURL(file);
       preview.style.display = "block";
+      document.getElementById("runUploadBox").style.display = "none";
+      document.getElementById("runUploadStatus").style.display = "block";
     });
 
     document.getElementById("runForm").addEventListener("submit", async event => {
@@ -2102,7 +2111,7 @@
         renderLeaderboard();
         renderDashboard();
         event.target.reset();
-        document.getElementById("runPreview").style.display = "none";
+        resetRunUploadUi();
         toast("บันทึกผลการวิ่งเรียบร้อย");
       } catch (err) {
         toast(err.message);
