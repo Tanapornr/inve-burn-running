@@ -36,13 +36,14 @@ function routeAction_(body) {
       register,
       login,
       addRun,
-      getDashboard
+      getDashboard,
+      systemCheck
     };
     const action = body.action;
     if (!handlers[action]) throw new Error('ไม่พบ action ที่ร้องขอ');
     return handlers[action](body);
   } catch (err) {
-    return { ok: false, message: err.message };
+    return { ok: false, message: friendlyError_(err) };
   }
 }
 
@@ -51,6 +52,25 @@ function setupSheets() {
   ensureSheet_(ss, CONFIG.EMPLOYEES_SHEET, ['Emp ID', 'Prefix', 'FirstName', 'LastName', 'Department', 'Email', 'Status']);
   ensureSheet_(ss, CONFIG.USERS_SHEET, ['code', 'name', 'department', 'goal', 'passwordHash', 'registeredAt']);
   ensureSheet_(ss, CONFIG.RUNS_SHEET, ['id', 'code', 'name', 'department', 'distance', 'date', 'note', 'imageUrl', 'createdAt']);
+}
+
+function authorizeDriveAccess() {
+  const result = systemCheck();
+  Logger.log(JSON.stringify(result));
+  return result;
+}
+
+function systemCheck() {
+  setupSheets();
+  const spreadsheet = getSpreadsheet_();
+  const folder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
+  return {
+    ok: true,
+    spreadsheet: spreadsheet.getName(),
+    folder: folder.getName(),
+    folderId: CONFIG.DRIVE_FOLDER_ID,
+    message: 'ระบบพร้อมใช้งาน Google Sheet และ Google Drive'
+  };
 }
 
 function lookupEmployee(body) {
@@ -262,10 +282,25 @@ function saveImage_(imageData, fileInfo) {
   const extension = match[1] === 'image/png' ? 'png' : 'jpg';
   const dateText = Utilities.formatDate(new Date(fileInfo.date), Session.getScriptTimeZone(), 'yyyy-MM-dd');
   const safeName = sanitizeFileName_(`ครั้งที่ ${fileInfo.runNumber} ${fileInfo.code} ${fileInfo.name} ${dateText}.${extension}`);
-  const blob = Utilities.newBlob(Utilities.base64Decode(match[2]), match[1], safeName);
-  const file = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID).createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  return file.getUrl();
+  try {
+    const blob = Utilities.newBlob(Utilities.base64Decode(match[2]), match[1], safeName);
+    const file = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID).createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return file.getUrl();
+  } catch (err) {
+    throw new Error(friendlyError_(err));
+  }
+}
+
+function friendlyError_(err) {
+  const message = err && err.message ? String(err.message) : String(err || '');
+  if (/Access denied:\s*DriveApp|DriveApp|Authorization is required|required permissions|permission/i.test(message)) {
+    return 'อัปโหลดรูปไม่ได้ เพราะ Google Apps Script ยังไม่ได้รับสิทธิ์ Google Drive: ให้เปิด Apps Script แล้ว Run ฟังก์ชัน authorizeDriveAccess() จากนั้นกดอนุญาตสิทธิ์ และ Deploy เป็นเวอร์ชันล่าสุด';
+  }
+  if (/No item with the given ID|File not found|folder/i.test(message)) {
+    return 'อัปโหลดรูปไม่ได้ เพราะไม่พบโฟลเดอร์ Google Drive ที่ตั้งไว้ กรุณาตรวจสอบ DRIVE_FOLDER_ID ใน Apps Script';
+  }
+  return message || 'ระบบข้อมูลไม่สำเร็จ กรุณาลองใหม่';
 }
 
 function sanitizeFileName_(fileName) {

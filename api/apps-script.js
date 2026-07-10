@@ -1,5 +1,16 @@
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx72kRdiVL_FS1LQOtTHKlM9Hjr3KRhT1HLr1UCTJJ-tsJiakmuLARR8gNugcHWjbA/exec";
 
+function friendlyMessage(message) {
+  const text = String(message || "");
+  if (/Access denied:\s*DriveApp|DriveApp|Authorization is required|required permissions|permission/i.test(text)) {
+    return "อัปโหลดรูปไม่ได้ เพราะ Google Apps Script ยังไม่ได้รับสิทธิ์ Google Drive: ให้เปิด Apps Script แล้ว Run ฟังก์ชัน authorizeDriveAccess() จากนั้นกดอนุญาตสิทธิ์ และ Deploy เป็นเวอร์ชันล่าสุด";
+  }
+  if (/No item with the given ID|File not found|folder/i.test(text)) {
+    return "อัปโหลดรูปไม่ได้ เพราะไม่พบโฟลเดอร์ Google Drive ที่ตั้งไว้ กรุณาตรวจสอบ DRIVE_FOLDER_ID ใน Apps Script";
+  }
+  return text;
+}
+
 function sendJson(res, status, data) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -55,9 +66,12 @@ module.exports = async function handler(req, res) {
     } catch (err) {
       throw new Error("Apps Script ตอบกลับไม่ถูกต้อง กรุณา deploy เวอร์ชันล่าสุด");
     }
+    if (data && data.ok === false) {
+      data.message = friendlyMessage(data.message);
+    }
 
     sendJson(res, upstream.ok ? 200 : upstream.status, data);
   } catch (err) {
-    sendJson(res, 500, { ok: false, message: err.message || "เชื่อมต่อระบบข้อมูลไม่สำเร็จ" });
+    sendJson(res, 500, { ok: false, message: friendlyMessage(err.message) || "เชื่อมต่อระบบข้อมูลไม่สำเร็จ" });
   }
 };
