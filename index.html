@@ -536,6 +536,9 @@
     }
     .upload-preview { width: 96px; height: 78px; object-fit: cover; border-radius: 8px; }
     .upload-selected { align-self: center; color: #098b4a; font-weight: 850; }
+    .proof-link { display: inline-flex; align-items: center; gap: 8px; color: var(--navy); font-weight: 850; text-decoration: none; }
+    .proof-thumb { width: 58px; height: 44px; border-radius: 8px; object-fit: cover; border: 1px solid var(--line); background: #eef3fb; }
+    .proof-open { display: inline-flex; align-items: center; gap: 4px; color: #098b4a; }
     .record-layout { display: grid; grid-template-columns: 110px 1fr; gap: 16px; }
     .mini-card { padding: 22px; margin-bottom: 18px; }
     .top-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
@@ -2252,6 +2255,42 @@
       document.getElementById("navAvatar").src = `https://ui-avatars.com/api/?background=eaf2ff&color=001f55&name=${encodeURIComponent(user.name)}`;
     }
 
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#39;"
+      }[char]));
+    }
+
+    function getDriveFileId(url) {
+      const text = String(url || "");
+      const match = text.match(/\/file\/d\/([^/?#]+)/) || text.match(/[?&]id=([^&#]+)/);
+      return match ? decodeURIComponent(match[1]) : "";
+    }
+
+    function getProofThumbnailUrl(url) {
+      const text = String(url || "");
+      if (!text) return "";
+      if (/^data:image\//i.test(text)) return text;
+      const fileId = getDriveFileId(text);
+      return fileId ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w180` : text;
+    }
+
+    function renderProofCell(run) {
+      const imageUrl = String(run.imageUrl || "");
+      if (!imageUrl) return "-";
+      const thumbnailUrl = getProofThumbnailUrl(imageUrl);
+      return `
+        <a class="proof-link" href="${escapeHtml(imageUrl)}" target="_blank" rel="noopener">
+          <img class="proof-thumb" src="${escapeHtml(thumbnailUrl)}" alt="รูปหลักฐานการวิ่ง" loading="lazy" onerror="this.style.display='none'">
+          <span class="proof-open">✅ ดูรูป</span>
+        </a>
+      `;
+    }
+
     function renderDashboard() {
       const user = appState.currentUser;
       if (!user) return;
@@ -2301,8 +2340,8 @@
         <tr>
           <td>${new Date(run.date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}</td>
           <td><b>${fmt.format(run.distance)}</b></td>
-          <td>✅ อัปโหลดแล้ว</td>
-          <td>${run.note || "-"}</td>
+          <td>${renderProofCell(run)}</td>
+          <td>${escapeHtml(run.note || "-")}</td>
           <td><b>${fmt.format(run.cumulative)}</b></td>
         </tr>
       `).join("");
