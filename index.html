@@ -497,8 +497,10 @@
     .dashboard-hero h1 { font-size: clamp(34px, 3vw, 48px); font-style: normal; letter-spacing: 0; }
     .user-mini { display: flex; align-items: center; gap: 12px; }
     .avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; background: #dfe7f2; }
-    .bell { position: relative; font-size: 25px; }
-    .bell span { position: absolute; right: -8px; top: -10px; background: var(--orange); color: #fff; border-radius: 50%; min-width: 19px; height: 19px; display: grid; place-items: center; font-size: 11px; font-weight: 900; }
+    .profile-avatar-wrap { display: inline-grid; place-items: center; position: relative; cursor: pointer; }
+    .profile-avatar-large { width: 86px; height: 86px; border-radius: 50%; border: 1px solid var(--line); object-fit: cover; background: #dfe7f2; }
+    .profile-avatar-wrap::after { content: "เปลี่ยนรูป"; position: absolute; inset: auto 0 -8px; margin: auto; width: max-content; max-width: 92px; border-radius: 999px; padding: 3px 9px; background: rgba(0,31,85,.88); color: #fff; font-size: 11px; font-weight: 800; opacity: 0; transform: translateY(4px); transition: .2s; }
+    .profile-avatar-wrap:hover::after { opacity: 1; transform: translateY(0); }
     .dashboard-grid { display: grid; grid-template-columns: 1fr .75fr .46fr; gap: 18px; }
     .progress-card { padding: 26px; }
     .progress-flex { display: grid; grid-template-columns: 220px 1fr; gap: 34px; align-items: center; }
@@ -622,27 +624,53 @@
 
     @media (max-width: 700px) {
       .container { width: calc(100% - 24px); }
-      .topbar { height: auto; padding: 12px 0; }
+      body { font-size: 15px; }
+      .topbar { height: auto; padding: 10px 0; }
       .brand { min-width: 0; }
-      .brand-logo { width: 58px; height: 54px; }
-      .brand-text { font-size: 22px; }
-      .brand-text small { font-size: 19px; }
-      .nav { flex-wrap: wrap; }
-      .nav-actions { width: 100%; }
-      .nav-actions .btn { flex: 1; padding: 0 10px; }
+      .brand-logo { width: 44px; height: 42px; }
+      .brand-text { font-size: 18px; letter-spacing: .2px; }
+      .brand-text small { font-size: 16px; }
+      .nav { flex-wrap: wrap; gap: 12px; }
+      .menu { order: 3; width: 100%; justify-content: flex-start; gap: 18px; padding-bottom: 2px; font-size: 15px; }
+      .menu a { padding: 8px 0 9px; border-bottom-width: 3px; }
+      .nav-actions { width: 100%; gap: 10px; }
+      .nav-actions .btn { flex: 1; min-height: 42px; padding: 0 8px; font-size: 15px; border-radius: 9px; }
+      .user-mini { flex-wrap: wrap; }
+      .user-mini > div { flex: 1; min-width: 150px; }
       .hero-content, .progress-flex, .record-layout, .field-grid { grid-template-columns: 1fr; }
       .runner-scene { display: none; }
       .stats-grid { grid-template-columns: 1fr; }
-      .form-shell, .login-card { padding: 24px 18px; }
+      .form-shell, .login-card { padding: 20px 16px; }
+      .form-shell { gap: 24px; margin-top: -12px; }
       .distance-options { grid-template-columns: 1fr; }
       .footer-inner { flex-direction: column; align-items: flex-start; padding: 18px 0; }
       .admin-main { padding: 22px 16px 90px; }
       .admin-card-grid, .goal-blocks, .help-grid { grid-template-columns: 1fr; }
+      .admin-sidebar { padding: 20px 14px; gap: 8px; }
+      .admin-sidebar .brand { margin-bottom: 10px; }
+      .admin-sidebar .brand-logo { width: 46px; height: 44px; }
+      .admin-sidebar .brand-text { font-size: 18px !important; }
+      .admin-sidebar .brand-text small { font-size: 15px !important; }
+      .admin-tab { min-height: 46px; padding: 0 14px; font-size: 15px; }
       .home-goal-rankings { padding: 12px; }
       .panel-body { padding: 20px 16px; }
-      .stat-card { padding: 18px; }
-      .hero { min-height: 260px; }
-      .hero h1 { font-size: clamp(44px, 16vw, 72px); }
+      .stat-card { min-height: 92px; padding: 16px; gap: 16px; }
+      .stat-value { font-size: 28px; }
+      .icon-circle { width: 58px; height: 58px; font-size: 26px; }
+      .hero { min-height: 210px; }
+      .hero-content { min-height: 210px; gap: 14px; }
+      .hero h1 { font-size: clamp(34px, 11vw, 48px); letter-spacing: -1px; line-height: 1.02; }
+      .hero p { font-size: 17px; }
+      .tagline { font-size: 14px; }
+      .title-hero { min-height: 150px; padding: 30px 0 26px; }
+      .title-hero h1 { font-size: clamp(30px, 9vw, 42px); }
+      .title-hero p { font-size: 14px; }
+      .login-layout { grid-template-columns: 1fr !important; gap: 18px; padding: 26px 0 28px; max-width: 100% !important; }
+      .login-promo h1 { font-size: clamp(36px, 12vw, 50px); }
+      .login-promo p, .login-side { font-size: 15px; }
+      .login-card h1 { font-size: 30px; }
+      .login-card p { margin-bottom: 20px; }
+      #adminLoginPage .login-promo { display: none; }
       table { min-width: 560px; }
     }
   </style>
@@ -665,8 +693,7 @@
         <button class="btn btn-navy" data-page-link="login">↪ เข้าสู่ระบบ</button>
       </div>
       <div class="nav-actions user-mini" id="userActions" style="display:none">
-        <div class="bell">🔔<span>3</span></div>
-        <img class="avatar" id="navAvatar" alt="รูปผู้ใช้" data-page-link="dashboard" style="cursor:pointer" />
+        <img class="avatar" id="navAvatar" alt="รูปผู้ใช้" data-profile-upload style="cursor:pointer" />
         <div data-page-link="dashboard" style="cursor:pointer">
           <strong id="navName">ผู้ใช้งาน</strong><br>
           <small id="navCode">EMP000000</small>
@@ -714,7 +741,7 @@
             <h2>📋 กติกา / วิธีการเข้าร่วม</h2>
             <ul class="check-list">
               <li>กิจกรรมนี้สำหรับพนักงาน INVE ทุกคน</li>
-              <li>เปิดรับสมัครลงทะเบียน วันที่ 9 - 31 กรกฎาคม 2569</li>
+              <li>เปิดรับสมัครลงทะเบียน วันที่ 13 - 31 กรกฎาคม 2569</li>
               <li>ระบบจะปิดรับสมัครอัตโนมัติเมื่อพ้นช่วงเวลารับสมัคร</li>
               <li>สะสมระยะการวิ่ง ตั้งแต่วันที่ 1 สิงหาคม - 15 สิงหาคม 2569</li>
               <li>ระยะทางมีให้เลือก 10 กิโลเมตร และ 20 กิโลเมตร</li>
@@ -735,7 +762,7 @@
             <h2>📋 กติกา / วิธีการเข้าร่วม</h2>
             <ul class="check-list">
               <li>กิจกรรมนี้สำหรับพนักงาน INVE ทุกคน</li>
-              <li>เปิดรับสมัครลงทะเบียน วันที่ 9 - 31 กรกฎาคม 2569</li>
+              <li>เปิดรับสมัครลงทะเบียน วันที่ 13 - 31 กรกฎาคม 2569</li>
               <li>ระบบจะปิดรับสมัครอัตโนมัติเมื่อพ้นช่วงเวลารับสมัคร</li>
               <li>สะสมระยะการวิ่ง ตั้งแต่วันที่ 1 สิงหาคม - 15 สิงหาคม 2569</li>
               <li>ระยะทางมีให้เลือก 10 กิโลเมตร และ 20 กิโลเมตร</li>
@@ -768,7 +795,6 @@
               <div class="period-tabs" id="rankingPeriodTabs">
                 <button type="button" class="active" data-ranking-period="today">วันนี้</button>
                 <button type="button" data-ranking-period="week">สัปดาห์นี้</button>
-                <button type="button" data-ranking-period="month">เดือนนี้</button>
                 <button type="button" data-ranking-period="all">ทั้งหมด</button>
               </div>
               <select id="rankingDepartmentFilter" aria-label="เลือกแผนก">
@@ -803,7 +829,7 @@
             <div class="step-title"><span>1</span><span>ค้นหาข้อมูลพนักงาน</span></div>
             <label for="employeeCode">รหัสพนักงาน <span class="req">*</span></label>
             <div class="row-between">
-              <input id="employeeCode" name="employeeCode" placeholder="เช่น 018" required />
+              <input id="employeeCode" name="employeeCode" placeholder="กรอกรหัสพนักงาน" required />
               <button class="btn btn-outline" type="button" id="lookupEmployeeBtn" style="min-width:120px">ตกลง</button>
               <span class="inline-ok" id="employeeFound" style="display:none">● พบข้อมูลพนักงาน</span>
             </div>
@@ -895,7 +921,7 @@
             <label style="font-weight:500"><input type="checkbox" style="width:auto;min-height:auto"> จดจำฉัน</label>
             <small class="helper">ลืมรหัสผ่าน กรุณาติดต่อแอดมิน</small>
           </div>
-          <button class="btn btn-navy" style="width:100%;margin-top:24px">↪ เข้าสู่ระบบ</button>
+          <button class="btn btn-navy" id="loginSubmitBtn" type="submit" style="width:100%;margin-top:24px">↪ เข้าสู่ระบบ</button>
           <hr class="divider">
           <p style="margin:0;text-align:center">ยังไม่มีบัญชี? <a class="muted-link" href="#register" data-page-link="register">ลงทะเบียน</a></p>
         </form>
@@ -1064,7 +1090,6 @@
               <p class="helper" id="adminSubtitle">Top 10 แยกตามเป้าหมาย 10 KM และ 20 KM</p>
             </div>
             <div class="user-mini">
-              <div class="bell">🔔<span>3</span></div>
               <img class="avatar" alt="admin" src="https://ui-avatars.com/api/?background=eaf2ff&color=001f55&name=Admin">
               <div><strong>ผู้ดูแลระบบ</strong><br><small>Administrator</small></div>
             </div>
@@ -1140,6 +1165,7 @@
   </footer>
 
   <div class="toast" id="toast"></div>
+  <input type="file" id="profilePhotoInput" accept="image/png,image/jpeg" hidden>
 
   <script>
     const CONFIG = {
@@ -1150,6 +1176,7 @@
       employeesSheetName: "Employees"
     };
     const CURRENT_USER_KEY = "inveBurnCurrentUser";
+    const PROFILE_PHOTOS_KEY = "inveBurnProfilePhotos";
     const DASHBOARD_CACHE_KEY = "inveBurnDashboardCache";
     const EMPLOYEES_CACHE_KEY = "inveBurnEmployeesCache";
     const CACHE_TTL = 6 * 60 * 60 * 1000;
@@ -1570,6 +1597,31 @@
 
     function clearCurrentUserSession() {
       localStorage.removeItem(CURRENT_USER_KEY);
+    }
+
+    function readProfilePhotos() {
+      try {
+        return JSON.parse(localStorage.getItem(PROFILE_PHOTOS_KEY) || "{}");
+      } catch (err) {
+        localStorage.removeItem(PROFILE_PHOTOS_KEY);
+        return {};
+      }
+    }
+
+    function getProfilePhoto(code) {
+      return readProfilePhotos()[normalizeCode(code)] || "";
+    }
+
+    function saveProfilePhoto(code, imageData) {
+      const photos = readProfilePhotos();
+      photos[normalizeCode(code)] = imageData;
+      localStorage.setItem(PROFILE_PHOTOS_KEY, JSON.stringify(photos));
+    }
+
+    function getAvatarSrc(user = {}) {
+      const photo = getProfilePhoto(user.code);
+      if (photo) return photo;
+      return `https://ui-avatars.com/api/?background=eaf2ff&color=001f55&name=${encodeURIComponent(user.name || user.code || "INVE")}`;
     }
 
     async function loadSheetRows(sheetName) {
@@ -2261,7 +2313,8 @@
       if (!user) return;
       document.getElementById("navName").textContent = user.name;
       document.getElementById("navCode").textContent = `รหัสพนักงาน ${user.code}`;
-      document.getElementById("navAvatar").src = `https://ui-avatars.com/api/?background=eaf2ff&color=001f55&name=${encodeURIComponent(user.name)}`;
+      document.getElementById("navAvatar").src = getAvatarSrc(user);
+      document.getElementById("navAvatar").title = "คลิกเพื่อเปลี่ยนรูปโปรไฟล์";
     }
 
     function escapeHtml(value) {
@@ -2333,7 +2386,9 @@
       `).join("");
       document.getElementById("profileSummary").innerHTML = `
         <div style="display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center">
-          <img src="https://ui-avatars.com/api/?background=eaf2ff&color=001f55&name=${encodeURIComponent(user.name)}" alt="profile" style="width:86px;height:86px;border-radius:50%;border:1px solid var(--line)">
+          <span class="profile-avatar-wrap" data-profile-upload title="คลิกเพื่อเปลี่ยนรูปโปรไฟล์">
+            <img class="profile-avatar-large" src="${getAvatarSrc(user)}" alt="profile">
+          </span>
           <div>
             <h2 style="margin:0 0 8px">โปรไฟล์ของฉัน</h2>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">
@@ -2342,6 +2397,7 @@
               <div><small class="stat-label">แผนก</small><b>${user.department || "-"}</b></div>
               <div><small class="stat-label">เป้าหมาย</small><b>${goal} KM</b></div>
             </div>
+            <button class="btn btn-ghost" type="button" data-profile-upload style="margin-top:14px;min-height:38px;padding:0 16px">เปลี่ยนรูปโปรไฟล์</button>
           </div>
         </div>
       `;
@@ -2428,7 +2484,44 @@
       });
     }
 
+    function fileToAvatarBase64(file) {
+      return new Promise((resolve, reject) => {
+        const objectUrl = URL.createObjectURL(file);
+        const image = new Image();
+        image.onload = () => {
+          try {
+            const size = 360;
+            const canvas = document.createElement("canvas");
+            canvas.width = size;
+            canvas.height = size;
+            const context = canvas.getContext("2d");
+            const side = Math.min(image.width, image.height);
+            const sourceX = Math.max(0, (image.width - side) / 2);
+            const sourceY = Math.max(0, (image.height - side) / 2);
+            context.drawImage(image, sourceX, sourceY, side, side, 0, 0, size, size);
+            URL.revokeObjectURL(objectUrl);
+            resolve(canvas.toDataURL("image/jpeg", 0.82));
+          } catch (err) {
+            URL.revokeObjectURL(objectUrl);
+            fileToBase64(file).then(resolve, reject);
+          }
+        };
+        image.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          fileToBase64(file).then(resolve, reject);
+        };
+        image.src = objectUrl;
+      });
+    }
+
     document.addEventListener("click", event => {
+      const profileTrigger = event.target.closest("[data-profile-upload]");
+      if (profileTrigger) {
+        event.preventDefault();
+        if (!appState.currentUser?.code) return toast("กรุณาเข้าสู่ระบบก่อนเปลี่ยนรูปโปรไฟล์");
+        document.getElementById("profilePhotoInput").click();
+        return;
+      }
       const link = event.target.closest("[data-page-link]");
       if (!link) return;
       event.preventDefault();
@@ -2441,6 +2534,34 @@
 
     document.getElementById("lookupEmployeeBtn").addEventListener("click", lookupEmployee);
     document.getElementById("employeeCode").addEventListener("input", clearEmployeeFields);
+
+    document.getElementById("profilePhotoInput").addEventListener("change", async event => {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (!appState.currentUser?.code) {
+        event.target.value = "";
+        return toast("กรุณาเข้าสู่ระบบก่อนเปลี่ยนรูปโปรไฟล์");
+      }
+      if (!["image/jpeg", "image/png"].includes(file.type)) {
+        event.target.value = "";
+        return toast("รองรับเฉพาะไฟล์ JPG, JPEG หรือ PNG");
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        event.target.value = "";
+        return toast("ขนาดไฟล์รูปโปรไฟล์ต้องไม่เกิน 5MB");
+      }
+      try {
+        const imageData = await fileToAvatarBase64(file);
+        saveProfilePhoto(appState.currentUser.code, imageData);
+        updateAuthUi();
+        renderDashboard();
+        toast("อัปเดตรูปโปรไฟล์เรียบร้อย");
+      } catch (err) {
+        toast("เปลี่ยนรูปโปรไฟล์ไม่สำเร็จ กรุณาลองใหม่");
+      } finally {
+        event.target.value = "";
+      }
+    });
 
     document.getElementById("registerForm").addEventListener("submit", async event => {
       event.preventDefault();
@@ -2490,6 +2611,9 @@
 
     document.getElementById("loginForm").addEventListener("submit", async event => {
       event.preventDefault();
+      const submitButton = event.target.querySelector("button[type='submit']");
+      setButtonLoading(submitButton, true, "กำลังเข้าสู่ระบบ...");
+      toast("กำลังเข้าสู่ระบบ กรุณารอสักครู่");
       try {
         const { employee, runs } = await api("login", {
           code: document.getElementById("loginCode").value,
@@ -2506,6 +2630,8 @@
         toast("เข้าสู่ระบบสำเร็จ");
       } catch (err) {
         toast(err.message);
+      } finally {
+        setButtonLoading(submitButton, false);
       }
     });
 
