@@ -1703,8 +1703,17 @@
       return applyRegisteredData(users, runs);
     }
 
+    async function fetchDashboardData(payload = {}) {
+      try {
+        return await apiProxy("getDashboard", payload);
+      } catch (err) {
+        console.warn("Dashboard proxy failed, fallback to JSONP", err);
+        return apiJsonp("getDashboard", payload);
+      }
+    }
+
     async function loadRegisteredDataFromApi() {
-      const dashboard = await apiJsonp("getDashboard", {});
+      const dashboard = await fetchDashboardData({});
       writeCache(DASHBOARD_CACHE_KEY, {
         leaderboard: dashboard.leaderboard || [],
         runs: dashboard.runs || [],
@@ -1723,7 +1732,7 @@
         }
 
         try {
-          const userDashboard = await apiJsonp("getDashboard", { code: appState.currentUser.code });
+          const userDashboard = await fetchDashboardData({ code: appState.currentUser.code });
           appState.currentUser = normalizeEmployeeRecord(userDashboard.employee || { ...appState.currentUser, ...latestUser });
           appState.runs = userDashboard.runs || appState.runs || [];
           saveCurrentUserSession(appState.currentUser);
