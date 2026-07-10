@@ -663,11 +663,12 @@
       </div>
       <div class="nav-actions user-mini" id="userActions" style="display:none">
         <div class="bell">🔔<span>3</span></div>
-        <img class="avatar" id="navAvatar" alt="รูปผู้ใช้" />
-        <div>
+        <img class="avatar" id="navAvatar" alt="รูปผู้ใช้" data-page-link="dashboard" style="cursor:pointer" />
+        <div data-page-link="dashboard" style="cursor:pointer">
           <strong id="navName">ผู้ใช้งาน</strong><br>
           <small id="navCode">EMP000000</small>
         </div>
+        <button class="btn btn-outline" data-page-link="dashboard">บันทึกผลวิ่ง</button>
         <button class="btn btn-ghost" id="logoutBtn">ออก</button>
       </div>
     </div>
@@ -1191,6 +1192,7 @@
       runs: CONFIG.demoMode ? [...demoRuns] : [],
       allRuns: CONFIG.demoMode ? [...demoRuns] : [],
       selectedEmployee: null,
+      isUploadingRun: false,
       isAdmin: false,
       rankingFilter: { period: "today", department: "", query: "" }
     };
@@ -1199,6 +1201,17 @@
 
     const fmt = new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const intFmt = new Intl.NumberFormat("th-TH");
+    const PAGE_HASHES = {
+      home: "home",
+      ranking: "ranking",
+      about: "about",
+      register: "register",
+      login: "login",
+      dashboard: "employee",
+      adminLogin: "admin-login",
+      admin: "admin"
+    };
+    const HASH_PAGES = Object.fromEntries(Object.entries(PAGE_HASHES).map(([page, hash]) => [hash, page]));
 
     function toast(message) {
       const el = document.getElementById("toast");
@@ -1216,6 +1229,20 @@
       } else {
         button.disabled = false;
         if (button.dataset.originalText) button.textContent = button.dataset.originalText;
+      }
+    }
+
+    function restoreRunFormControls() {
+      const submitButton = document.getElementById("runSubmitBtn");
+      if (!submitButton || appState.isUploadingRun) return;
+      setButtonLoading(submitButton, false);
+      const imageInput = document.getElementById("runImage");
+      const uploadStatus = document.getElementById("runUploadStatus");
+      if (imageInput?.files?.length === 1 && uploadStatus) {
+        uploadStatus.style.display = "block";
+        if (/กำลัง/.test(uploadStatus.textContent || "")) {
+          uploadStatus.textContent = "✅ อัปโหลดรูปแล้ว 1 รูป";
+        }
       }
     }
 
@@ -2154,7 +2181,16 @@
       });
     }
 
-    function setPage(page) {
+    function getPageFromHash() {
+      const hash = decodeURIComponent(window.location.hash.replace(/^#\/?/, "")).trim();
+      return HASH_PAGES[hash] || HASH_PAGES[hash.replace("-", "")] || (document.getElementById(`${hash}Page`) ? hash : "home");
+    }
+
+    function setPage(page, options = {}) {
+      if (!document.getElementById(`${page}Page`)) page = "home";
+      if (page === "dashboard" && !appState.currentUser?.code) {
+        restoreCurrentUserSession();
+      }
       if (page === "dashboard" && !appState.currentUser?.code) {
         appState.currentUser = null;
         clearCurrentUserSession();
@@ -2162,9 +2198,20 @@
         toast("กรุณาเข้าสู่ระบบก่อนใช้งาน");
         page = "login";
       }
+      if (page === "dashboard") {
+        updateAuthUi();
+        renderDashboard();
+        restoreRunFormControls();
+      }
       document.querySelectorAll(".page").forEach(item => item.classList.remove("active"));
       document.getElementById(`${page}Page`).classList.add("active");
       document.querySelectorAll("[data-page-link]").forEach(item => item.classList.toggle("active", item.dataset.pageLink === page));
+      if (options.updateHash !== false) {
+        const nextHash = PAGE_HASHES[page] || page;
+        if (window.location.hash.replace(/^#\/?/, "") !== nextHash) {
+          history.pushState({ page }, "", `#${nextHash}`);
+        }
+      }
       if (page === "admin") renderAdmin();
       refreshLiveData();
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -2340,6 +2387,10 @@
       setPage(link.dataset.pageLink);
     });
 
+    window.addEventListener("popstate", () => {
+      setPage(getPageFromHash(), { updateHash: false });
+    });
+
     document.getElementById("lookupEmployeeBtn").addEventListener("click", lookupEmployee);
     document.getElementById("employeeCode").addEventListener("input", clearEmployeeFields);
 
@@ -2411,6 +2462,8 @@
     });
 
     function resetRunUploadUi() {
+      appState.isUploadingRun = false;
+      setButtonLoading(document.getElementById("runSubmitBtn"), false);
       document.getElementById("runPreview").style.display = "none";
       document.getElementById("runPreview").src = "";
       document.getElementById("runUploadBox").style.display = "grid";
@@ -2443,6 +2496,7 @@
     document.getElementById("runForm").addEventListener("submit", async event => {
       event.preventDefault();
       const submitButton = document.getElementById("runSubmitBtn");
+      if (appState.isUploadingRun) return toast("ระบบกำลังบันทึกผล กรุณารอสักครู่");
       if (!appState.currentUser?.code) {
         appState.currentUser = null;
         clearCurrentUserSession();
@@ -2456,6 +2510,7 @@
       const distance = Number(document.getElementById("runDistance").value);
       if (!distance || distance <= 0) return toast("กรุณากรอกระยะทางที่ถูกต้อง");
       const uploadStatus = document.getElementById("runUploadStatus");
+      appState.isUploadingRun = true;
       setButtonLoading(submitButton, true, "กำลังย่อรูป...");
       uploadStatus.style.display = "block";
       uploadStatus.textContent = "⏳ กำลังย่อรูปก่อนอัปโหลด...";
@@ -2487,8 +2542,11 @@
           renderDashboard();
         });
       } catch (err) {
+        uploadStatus.style.display = "block";
+        uploadStatus.textContent = "❌ บันทึกไม่สำเร็จ รูปยังเลือกอยู่ กดบันทึกอีกครั้งได้";
         toast(err.message);
       } finally {
+        appState.isUploadingRun = false;
         setButtonLoading(submitButton, false);
       }
     });
@@ -2593,6 +2651,7 @@
       updateAuthUi();
       renderDashboard();
       renderAdmin();
+      setPage(getPageFromHash(), { updateHash: false });
       startRealtimeUpdates();
     }
 
