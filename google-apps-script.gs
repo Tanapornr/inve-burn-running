@@ -36,12 +36,14 @@ function routeAction_(body) {
       register,
       login,
       addRun,
+      updateProfilePhoto,
       getDashboard,
       systemCheck,
       testDriveUploadAccess
     };
     const action = body.action;
     if (!handlers[action]) throw new Error('ไม่พบ action ที่ร้องขอ');
+    setupSheets();
     return handlers[action](body);
   } catch (err) {
     return { ok: false, message: friendlyError_(err) };
@@ -51,7 +53,7 @@ function routeAction_(body) {
 function setupSheets() {
   const ss = getSpreadsheet_();
   ensureSheet_(ss, CONFIG.EMPLOYEES_SHEET, ['Emp ID', 'Prefix', 'FirstName', 'LastName', 'Department', 'Email', 'Status']);
-  ensureSheet_(ss, CONFIG.USERS_SHEET, ['code', 'name', 'department', 'goal', 'passwordHash', 'registeredAt']);
+  ensureSheet_(ss, CONFIG.USERS_SHEET, ['code', 'name', 'department', 'goal', 'passwordHash', 'registeredAt', 'profilePhotoBase64']);
   ensureSheet_(ss, CONFIG.RUNS_SHEET, ['id', 'code', 'name', 'department', 'distance', 'date', 'note', 'imageUrl', 'createdAt']);
 }
 
@@ -129,7 +131,7 @@ function register(body) {
     if (userIndex >= 0) throw new Error('บัญชีนี้มีอยู่แล้ว กรุณาเข้าสู่ระบบ');
 
     const employeeDto = employeeToDto_(employee);
-    const userRow = [employeeDto.code, employeeDto.name, employeeDto.department, goal, hashPassword_(password), new Date()];
+    const userRow = [employeeDto.code, employeeDto.name, employeeDto.department, goal, hashPassword_(password), new Date(), ''];
     usersSheet.appendRow(userRow);
   } finally {
     lock.releaseLock();
@@ -151,6 +153,33 @@ function login(body) {
     ok: true,
     employee: buildUserSummary_(code),
     runs: getRunsByCode_(code)
+  };
+}
+
+function updateProfilePhoto(body) {
+  const code = normalizeCode_(body.code || body.employeeCode);
+  const profilePhotoBase64 = String(body.profilePhotoBase64 || body.imageData || '');
+  if (!code) throw new Error('กรุณาระบุรหัสพนักงาน');
+  if (!findUser_(code)) throw new Error('ยังไม่ได้ลงทะเบียน');
+  if (!/^data:image\/(?:png|jpeg);base64,/i.test(profilePhotoBase64)) throw new Error('รูปโปรไฟล์ไม่ถูกต้อง');
+  if (profilePhotoBase64.length > 45000) throw new Error('รูปโปรไฟล์ใหญ่เกินไป กรุณาเลือกรูปใหม่');
+
+  const sheet = getSheet_(CONFIG.USERS_SHEET);
+  ensureSheet_(getSpreadsheet_(), CONFIG.USERS_SHEET, ['code', 'name', 'department', 'goal', 'passwordHash', 'registeredAt', 'profilePhotoBase64']);
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0].map(String);
+  const codeIndex = headers.indexOf('code');
+  const photoIndex = headers.indexOf('profilePhotoBase64');
+  if (codeIndex < 0 || photoIndex < 0) throw new Error('ชีต Users ยังไม่พร้อมใช้งาน');
+
+  const rowIndex = values.findIndex((row, index) => index > 0 && codeMatches_(row[codeIndex], code));
+  if (rowIndex < 1) throw new Error('ยังไม่ได้ลงทะเบียน');
+  sheet.getRange(rowIndex + 1, photoIndex + 1).setValue(profilePhotoBase64);
+
+  return {
+    ok: true,
+    employee: buildUserSummary_(code),
+    leaderboard: getLeaderboard_()
   };
 }
 
@@ -229,7 +258,8 @@ function getLeaderboard_() {
     name: user.name,
     department: user.department,
     goal: Number(user.goal || 0),
-    total: Number(totals[normalizeCode_(user.code)] || 0)
+    total: Number(totals[normalizeCode_(user.code)] || 0),
+    profilePhotoBase64: user.profilePhotoBase64 || ''
   })).sort((a, b) => b.total - a.total);
 }
 
@@ -242,7 +272,8 @@ function buildUserSummary_(code) {
     name: user.name,
     department: user.department,
     goal: Number(user.goal || 0),
-    total
+    total,
+    profilePhotoBase64: user.profilePhotoBase64 || ''
   };
 }
 
@@ -461,6 +492,11 @@ function getSheet_(name) {
 function ensureSheet_(ss, name, headers) {
   const sheet = ss.getSheetByName(name) || ss.insertSheet(name);
   if (sheet.getLastRow() === 0) sheet.appendRow(headers);
+  const currentHeaders = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0].map(String);
+  const missingHeaders = headers.filter(header => !currentHeaders.includes(header));
+  if (missingHeaders.length) {
+    sheet.getRange(1, currentHeaders.length + 1, 1, missingHeaders.length).setValues([missingHeaders]);
+  }
   return sheet;
 }
 

@@ -331,6 +331,8 @@
     .podium-rank { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font-size: 25px; font-weight: 950; color: #fff; background: #b8c3d3; }
     .podium-card.first .podium-rank { width: 64px; height: 64px; font-size: 31px; background: linear-gradient(135deg, #ffbe2e, #ff8a00); }
     .podium-card.third .podium-rank { background: linear-gradient(135deg, #d9874a, #b55a2b); }
+    .podium-avatar { width: 74px; height: 74px; border-radius: 50%; object-fit: cover; border: 3px solid #fff; box-shadow: 0 8px 22px rgba(0,31,85,.18); background: #eaf2ff; }
+    .podium-card.first .podium-avatar { width: 88px; height: 88px; border-color: #fff7df; }
     .podium-name { font-size: 18px; font-weight: 950; color: var(--navy); }
     .podium-dept { color: #64748b; font-weight: 700; }
     .podium-distance { font-size: 22px; font-weight: 950; color: var(--orange); }
@@ -1300,7 +1302,8 @@
         ...employee,
         code: normalizeCode(employee.code),
         goal: normalizeGoalDistance(employee.goal),
-        total: Number(employee.total || 0)
+        total: Number(employee.total || 0),
+        profilePhotoBase64: employee.profilePhotoBase64 || employee.avatarBase64 || employee.photoBase64 || employee.profilePhoto || ""
       };
     }
 
@@ -1357,6 +1360,9 @@
         } catch (err) {
           return loginFromSheet(payload);
         }
+      }
+      if (action === "updateProfilePhoto") {
+        return apiProxy(action, payload);
       }
       if (!CONFIG.apiUrl) {
         throw new Error("ยังไม่ได้เชื่อมระบบบันทึกข้อมูล");
@@ -1619,7 +1625,7 @@
     }
 
     function getAvatarSrc(user = {}) {
-      const photo = getProfilePhoto(user.code);
+      const photo = user.profilePhotoBase64 || getProfilePhoto(user.code);
       if (photo) return photo;
       return `https://ui-avatars.com/api/?background=eaf2ff&color=001f55&name=${encodeURIComponent(user.name || user.code || "INVE")}`;
     }
@@ -1698,7 +1704,8 @@
           name: row.name || "-",
           department: row.department || "-",
           goal: normalizeGoalDistance(row.goal),
-          total: Number(row.total ?? totals[normalizeCode(row.code)] ?? 0)
+          total: Number(row.total ?? totals[normalizeCode(row.code)] ?? 0),
+          profilePhotoBase64: row.profilePhotoBase64 || row.avatarBase64 || row.photoBase64 || getProfilePhoto(row.code) || ""
         }));
 
       appState.allRegisteredUsers = registered.sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
@@ -1855,7 +1862,8 @@
           name: user.name || "-",
           department: user.department || "-",
           goal: normalizeGoalDistance(user.goal),
-          total: cumulative
+          total: cumulative,
+          profilePhotoBase64: user.profilePhotoBase64 || user.avatarBase64 || user.photoBase64 || ""
         },
         runs: userRuns
       };
@@ -2045,6 +2053,7 @@
                 return `
                   <article class="${classes}">
                     <span class="podium-rank">${originalIndex + 1}</span>
+                    <img class="podium-avatar" src="${escapeHtml(getAvatarSrc(item))}" alt="${escapeHtml(item.name)}" loading="lazy">
                     <div class="podium-name">${item.name}</div>
                     <div class="podium-dept">${item.department || "-"}</div>
                     <div class="podium-distance">${fmt.format(item.total || 0)} กม.</div>
@@ -2484,13 +2493,12 @@
       });
     }
 
-    function fileToAvatarBase64(file) {
+    function fileToAvatarBase64(file, size = 128, quality = 0.74) {
       return new Promise((resolve, reject) => {
         const objectUrl = URL.createObjectURL(file);
         const image = new Image();
         image.onload = () => {
           try {
-            const size = 360;
             const canvas = document.createElement("canvas");
             canvas.width = size;
             canvas.height = size;
@@ -2500,7 +2508,12 @@
             const sourceY = Math.max(0, (image.height - side) / 2);
             context.drawImage(image, sourceX, sourceY, side, side, 0, 0, size, size);
             URL.revokeObjectURL(objectUrl);
-            resolve(canvas.toDataURL("image/jpeg", 0.82));
+            const imageData = canvas.toDataURL("image/jpeg", quality);
+            if (imageData.length > 45000 && size > 96) {
+              fileToAvatarBase64(file, 96, 0.68).then(resolve, reject);
+              return;
+            }
+            resolve(imageData);
           } catch (err) {
             URL.revokeObjectURL(objectUrl);
             fileToBase64(file).then(resolve, reject);
@@ -2540,24 +2553,49 @@
       if (!file) return;
       if (!appState.currentUser?.code) {
         event.target.value = "";
-        return toast("กรุณาเข้าสู่ระบบก่อนเปลี่ยนรูปโปรไฟล์");
+        return toast("\u0e01\u0e23\u0e38\u0e13\u0e32\u0e40\u0e02\u0e49\u0e32\u0e2a\u0e39\u0e48\u0e23\u0e30\u0e1a\u0e1a\u0e01\u0e48\u0e2d\u0e19\u0e40\u0e1b\u0e25\u0e35\u0e48\u0e22\u0e19\u0e23\u0e39\u0e1b\u0e42\u0e1b\u0e23\u0e44\u0e1f\u0e25\u0e4c");
       }
       if (!["image/jpeg", "image/png"].includes(file.type)) {
         event.target.value = "";
-        return toast("รองรับเฉพาะไฟล์ JPG, JPEG หรือ PNG");
+        return toast("\u0e23\u0e2d\u0e07\u0e23\u0e31\u0e1a\u0e40\u0e09\u0e1e\u0e32\u0e30\u0e44\u0e1f\u0e25\u0e4c JPG, JPEG \u0e2b\u0e23\u0e37\u0e2d PNG");
       }
       if (file.size > 5 * 1024 * 1024) {
         event.target.value = "";
-        return toast("ขนาดไฟล์รูปโปรไฟล์ต้องไม่เกิน 5MB");
+        return toast("\u0e02\u0e19\u0e32\u0e14\u0e44\u0e1f\u0e25\u0e4c\u0e23\u0e39\u0e1b\u0e42\u0e1b\u0e23\u0e44\u0e1f\u0e25\u0e4c\u0e15\u0e49\u0e2d\u0e07\u0e44\u0e21\u0e48\u0e40\u0e01\u0e34\u0e19 5MB");
       }
       try {
         const imageData = await fileToAvatarBase64(file);
+        if (imageData.length > 45000) throw new Error("รูปโปรไฟล์ใหญ่เกินไป กรุณาเลือกรูปใหม่");
+
         saveProfilePhoto(appState.currentUser.code, imageData);
+        appState.currentUser = { ...appState.currentUser, profilePhotoBase64: imageData };
+        saveCurrentUserSession(appState.currentUser);
+        upsertRegisteredUser(appState.currentUser);
         updateAuthUi();
+        renderStats();
+        renderLeaderboard();
+        renderDashboard();
+
+        toast("กำลังบันทึกรูปโปรไฟล์...");
+        const data = await api("updateProfilePhoto", {
+          code: appState.currentUser.code,
+          profilePhotoBase64: imageData
+        });
+        if (data.employee) {
+          appState.currentUser = normalizeEmployeeRecord(data.employee);
+          saveCurrentUserSession(appState.currentUser);
+          upsertRegisteredUser(appState.currentUser);
+        }
+        if (Array.isArray(data.leaderboard)) {
+          applyRegisteredData(data.leaderboard, appState.allRuns);
+        }
+        updateAuthUi();
+        renderStats();
+        renderLeaderboard();
         renderDashboard();
         toast("อัปเดตรูปโปรไฟล์เรียบร้อย");
       } catch (err) {
-        toast("เปลี่ยนรูปโปรไฟล์ไม่สำเร็จ กรุณาลองใหม่");
+        toast(err.message || "เปลี่ยนรูปโปรไฟล์ไม่สำเร็จ กรุณาลองใหม่");
       } finally {
         event.target.value = "";
       }
