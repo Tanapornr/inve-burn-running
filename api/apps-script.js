@@ -3,7 +3,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxci5eV98fL9yS4EjCq4
 function friendlyMessage(message) {
   const text = String(message || "");
   if (/Access denied:\s*DriveApp|DriveApp|Authorization is required|required permissions|permission/i.test(text)) {
-    return "อัปโหลดรูปไม่ได้ เพราะ Google Apps Script ยังไม่ได้รับสิทธิ์ Google Drive: ให้เปิด Apps Script แล้ว Run ฟังก์ชัน authorizeDriveAccess() จากนั้นกดอนุญาตสิทธิ์ และ Deploy เป็นเวอร์ชันล่าสุด";
+    return "อัปโหลดรูปไม่ได้ เพราะ Google Apps Script ยังไม่มีสิทธิ์เขียนไฟล์ใน Google Drive หรือ Deploy ไม่ได้ตั้ง Execute as Me: ให้เปิด Apps Script แล้ว Run ฟังก์ชัน testDriveUploadAccess() จากนั้นกดอนุญาตสิทธิ์ และ Deploy เป็นเวอร์ชันล่าสุด";
   }
   if (/No item with the given ID|File not found|folder/i.test(text)) {
     return "อัปโหลดรูปไม่ได้ เพราะไม่พบโฟลเดอร์ Google Drive ที่ตั้งไว้ กรุณาตรวจสอบ DRIVE_FOLDER_ID ใน Apps Script";

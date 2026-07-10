@@ -37,7 +37,8 @@ function routeAction_(body) {
       login,
       addRun,
       getDashboard,
-      systemCheck
+      systemCheck,
+      testDriveUploadAccess
     };
     const action = body.action;
     if (!handlers[action]) throw new Error('ไม่พบ action ที่ร้องขอ');
@@ -71,6 +72,25 @@ function systemCheck() {
     folderId: CONFIG.DRIVE_FOLDER_ID,
     message: 'ระบบพร้อมใช้งาน Google Sheet และ Google Drive'
   };
+}
+
+function testDriveUploadAccess() {
+  setupSheets();
+  const folder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
+  const fileName = `INVE_UPLOAD_TEST_${Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd_HHmmss')}.txt`;
+  try {
+    const file = folder.createFile(Utilities.newBlob('INVE BURN RUNNING upload test', 'text/plain', fileName));
+    const url = file.getUrl();
+    file.setTrashed(true);
+    return {
+      ok: true,
+      message: 'ทดสอบเขียนไฟล์ Google Drive สำเร็จ ระบบอัปโหลดพร้อมใช้งาน',
+      fileName,
+      url
+    };
+  } catch (err) {
+    throw new Error(friendlyError_(err));
+  }
 }
 
 function lookupEmployee(body) {
@@ -285,7 +305,11 @@ function saveImage_(imageData, fileInfo) {
   try {
     const blob = Utilities.newBlob(Utilities.base64Decode(match[2]), match[1], safeName);
     const file = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID).createFile(blob);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (sharingErr) {
+      Logger.log(`Skip public sharing for ${safeName}: ${sharingErr.message}`);
+    }
     return file.getUrl();
   } catch (err) {
     throw new Error(friendlyError_(err));
@@ -295,7 +319,7 @@ function saveImage_(imageData, fileInfo) {
 function friendlyError_(err) {
   const message = err && err.message ? String(err.message) : String(err || '');
   if (/Access denied:\s*DriveApp|DriveApp|Authorization is required|required permissions|permission/i.test(message)) {
-    return 'อัปโหลดรูปไม่ได้ เพราะ Google Apps Script ยังไม่ได้รับสิทธิ์ Google Drive: ให้เปิด Apps Script แล้ว Run ฟังก์ชัน authorizeDriveAccess() จากนั้นกดอนุญาตสิทธิ์ และ Deploy เป็นเวอร์ชันล่าสุด';
+    return 'อัปโหลดรูปไม่ได้ เพราะ Google Apps Script ยังไม่มีสิทธิ์เขียนไฟล์ใน Google Drive หรือ Deploy ไม่ได้ตั้ง Execute as Me: ให้เปิด Apps Script แล้ว Run ฟังก์ชัน testDriveUploadAccess() จากนั้นกดอนุญาตสิทธิ์ และ Deploy เป็นเวอร์ชันล่าสุด';
   }
   if (/No item with the given ID|File not found|folder/i.test(message)) {
     return 'อัปโหลดรูปไม่ได้ เพราะไม่พบโฟลเดอร์ Google Drive ที่ตั้งไว้ กรุณาตรวจสอบ DRIVE_FOLDER_ID ใน Apps Script';
