@@ -2,6 +2,9 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzU5x4lkXFhQPkPMg2fN
 
 function friendlyMessage(message) {
   const text = String(message || "");
+  if (/AbortError|aborted|timeout|timed out/i.test(text)) {
+    return "เชื่อมต่อระบบช้าเกินไป กรุณาตรวจสอบ Wi‑Fi หรือสลับเป็น 4G/5G แล้วลองใหม่";
+  }
   if (/Access denied:\s*DriveApp|DriveApp|Authorization is required|required permissions|permission/i.test(text)) {
     return "อัปโหลดรูปไม่ได้ เพราะ Google Apps Script ยังไม่มีสิทธิ์เขียนไฟล์ใน Google Drive หรือ Deploy ไม่ได้ตั้ง Execute as Me: ให้เปิด Apps Script แล้ว Run ฟังก์ชัน testDriveUploadAccess() จากนั้นกดอนุญาตสิทธิ์ และ Deploy เป็นเวอร์ชันล่าสุด";
   }
@@ -19,6 +22,16 @@ function sendJson(res, status, data) {
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   res.end(JSON.stringify(data));
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 25000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 function readBody(req) {
@@ -52,12 +65,12 @@ module.exports = async function handler(req, res) {
     const payload = rawBody ? JSON.parse(rawBody) : {};
     if (!payload.action) throw new Error("ไม่พบ action ที่ร้องขอ");
 
-    const upstream = await fetch(SCRIPT_URL, {
+    const upstream = await fetchWithTimeout(SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload),
       redirect: "follow"
-    });
+    }, 25000);
 
     const text = await upstream.text();
     let data;

@@ -506,6 +506,17 @@
     .profile-avatar-large { width: 86px; height: 86px; border-radius: 50%; border: 1px solid var(--line); object-fit: cover; background: #dfe7f2; }
     .profile-avatar-wrap::after { content: "เปลี่ยนรูป"; position: absolute; inset: auto 0 -8px; margin: auto; width: max-content; max-width: 92px; border-radius: 999px; padding: 3px 9px; background: rgba(0,31,85,.88); color: #fff; font-size: 11px; font-weight: 800; opacity: 0; transform: translateY(4px); transition: .2s; }
     .profile-avatar-wrap:hover::after { opacity: 1; transform: translateY(0); }
+    .profile-card-shell { display: grid; grid-template-columns: auto 1fr; gap: 22px; align-items: center; }
+    .profile-info h2 { margin: 0 0 14px; font-size: clamp(26px, 2.4vw, 34px); line-height: 1.1; color: var(--navy); }
+    .profile-details { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 12px; }
+    .profile-detail { border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; background: linear-gradient(180deg, #ffffff, #f7fbff); box-shadow: 0 8px 18px rgba(0,31,85,.04); }
+    .profile-detail .profile-label { display: block; margin-bottom: 6px; color: #6f7f99; font-size: 12px; font-weight: 850; letter-spacing: .2px; }
+    .profile-detail .profile-value { display: flex; align-items: baseline; gap: 7px; color: var(--navy); font-size: 18px; font-weight: 950; line-height: 1.25; overflow-wrap: anywhere; }
+    .profile-detail .profile-icon { font-size: 17px; line-height: 1; }
+    .profile-detail.highlight { border-color: rgba(255,69,24,.30); background: linear-gradient(135deg, #fff4ed, #fff); }
+    .profile-detail.highlight .profile-value { color: var(--orange); }
+    .profile-actions { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .profile-hint { color: #71819b; font-weight: 700; font-size: 13px; }
     .dashboard-grid { display: grid; grid-template-columns: 1fr .75fr .46fr; gap: 18px; }
     .progress-card { padding: 26px; }
     .progress-flex { display: grid; grid-template-columns: 220px 1fr; gap: 34px; align-items: center; }
@@ -666,6 +677,13 @@
       .admin-sidebar .brand-text { font-size: 18px !important; }
       .admin-sidebar .brand-text small { font-size: 15px !important; }
       .admin-tab { min-height: 46px; padding: 0 14px; font-size: 15px; }
+      .profile-card-shell { grid-template-columns: 1fr; justify-items: center; text-align: center; gap: 18px; }
+      .profile-avatar-large { width: 116px; height: 116px; }
+      .profile-info { width: 100%; }
+      .profile-details { grid-template-columns: 1fr; gap: 10px; }
+      .profile-detail { text-align: left; padding: 13px 14px; }
+      .profile-detail .profile-value { font-size: 17px; justify-content: flex-start; }
+      .profile-actions { justify-content: center; }
       .home-goal-rankings { padding: 12px; }
       .panel-body { padding: 20px 16px; }
       .stat-card { min-height: 92px; padding: 16px; gap: 16px; }
@@ -1332,13 +1350,43 @@
       };
     }
 
+    async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        return await fetch(url, { ...options, signal: controller.signal });
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+    }
+
+    function isNetworkError(err) {
+      return err?.name === "AbortError" || /Failed to fetch|NetworkError|Load failed|timeout|abort/i.test(err?.message || "");
+    }
+
+    function getFriendlyErrorMessage(err) {
+      const message = err?.message || "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง";
+      if (isNetworkError(err) || /โหลดระบบข้อมูล|เชื่อมต่อระบบข้อมูล|โหลดรายชื่อ|ตรวจสอบสิทธิ์|เชื่อมต่อระบบไม่ได้/i.test(message)) {
+        return "เชื่อมต่อระบบไม่ได้ กรุณาตรวจสอบ Wi‑Fi หรือสลับเป็น 4G/5G แล้วลองใหม่";
+      }
+      return message;
+    }
+
     async function apiProxy(action, payload = {}) {
       if (!CONFIG.apiProxyUrl) throw new Error("ยังไม่ได้ตั้งค่า API Proxy");
-      const res = await fetch(CONFIG.apiProxyUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, ...payload })
-      });
+      let res;
+      try {
+        res = await fetchWithTimeout(CONFIG.apiProxyUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, ...payload })
+        }, 15000);
+      } catch (err) {
+        if (isNetworkError(err)) {
+          throw new Error("เชื่อมต่อระบบไม่ได้ กรุณาตรวจสอบ Wi‑Fi หรือสลับเป็น 4G/5G แล้วลองใหม่");
+        }
+        throw err;
+      }
       let data;
       try {
         data = await res.json();
@@ -2517,19 +2565,34 @@
         </article>
       `).join("");
       document.getElementById("profileSummary").innerHTML = `
-        <div style="display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center">
+        <div class="profile-card-shell">
           <span class="profile-avatar-wrap" data-profile-upload title="คลิกเพื่อเปลี่ยนรูปโปรไฟล์">
             <img class="profile-avatar-large" src="${getAvatarSrc(user)}" alt="profile">
           </span>
-          <div>
-            <h2 style="margin:0 0 8px">โปรไฟล์ของฉัน</h2>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">
-              <div><small class="stat-label">ชื่อ-นามสกุล</small><b>${user.name}</b></div>
-              <div><small class="stat-label">รหัสพนักงาน</small><b>${user.code}</b></div>
-              <div><small class="stat-label">แผนก</small><b>${user.department || "-"}</b></div>
-              <div><small class="stat-label">เป้าหมาย</small><b>${goal} KM</b></div>
+          <div class="profile-info">
+            <h2>โปรไฟล์ของฉัน</h2>
+            <div class="profile-details">
+              <div class="profile-detail">
+                <span class="profile-label">ชื่อ-นามสกุล</span>
+                <strong class="profile-value"><span class="profile-icon">👤</span>${escapeHtml(user.name)}</strong>
+              </div>
+              <div class="profile-detail">
+                <span class="profile-label">รหัสพนักงาน</span>
+                <strong class="profile-value"><span class="profile-icon">🪪</span>${escapeHtml(user.code)}</strong>
+              </div>
+              <div class="profile-detail">
+                <span class="profile-label">แผนก</span>
+                <strong class="profile-value"><span class="profile-icon">🏢</span>${escapeHtml(user.department || "-")}</strong>
+              </div>
+              <div class="profile-detail highlight">
+                <span class="profile-label">เป้าหมาย</span>
+                <strong class="profile-value"><span class="profile-icon">🎯</span>${intFmt.format(goal)} กิโลเมตร</strong>
+              </div>
             </div>
-            <button class="btn btn-ghost" type="button" data-profile-upload style="margin-top:14px;min-height:38px;padding:0 16px">เปลี่ยนรูปโปรไฟล์</button>
+            <div class="profile-actions">
+              <button class="btn btn-ghost" type="button" data-profile-upload style="min-height:38px;padding:0 16px">เปลี่ยนรูปโปรไฟล์</button>
+              <span class="profile-hint">รูปนี้ใช้ในหน้าแรกและหน้าอันดับด้วย</span>
+            </div>
           </div>
         </div>
       `;
@@ -2573,7 +2636,7 @@
         toast("พบข้อมูลพนักงานแล้ว");
       } catch (err) {
         clearEmployeeFields();
-        toast(err.message);
+        toast(getFriendlyErrorMessage(err));
       } finally {
         setButtonLoading(lookupButton, false);
       }
@@ -2734,7 +2797,7 @@
         renderDashboard();
         toast("อัปเดตรูปโปรไฟล์เรียบร้อย");
       } catch (err) {
-        toast(err.message || "เปลี่ยนรูปโปรไฟล์ไม่สำเร็จ กรุณาลองใหม่");
+        toast(getFriendlyErrorMessage(err));
       } finally {
         event.target.value = "";
       }
@@ -2780,7 +2843,7 @@
           renderDashboard();
         });
       } catch (err) {
-        toast(err.message);
+        toast(getFriendlyErrorMessage(err));
       } finally {
         setButtonLoading(submitButton, false);
       }
@@ -2806,7 +2869,7 @@
         setPage("dashboard");
         toast("เข้าสู่ระบบสำเร็จ");
       } catch (err) {
-        toast(err.message);
+        toast(getFriendlyErrorMessage(err));
       } finally {
         setButtonLoading(submitButton, false);
       }
@@ -2895,7 +2958,7 @@
       } catch (err) {
         uploadStatus.style.display = "block";
         uploadStatus.textContent = "❌ บันทึกไม่สำเร็จ รูปยังเลือกอยู่ กดบันทึกอีกครั้งได้";
-        toast(err.message);
+        toast(getFriendlyErrorMessage(err));
       } finally {
         appState.isUploadingRun = false;
         setButtonLoading(submitButton, false);
