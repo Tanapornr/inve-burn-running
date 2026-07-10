@@ -543,9 +543,18 @@
     }
     .upload-preview { width: 96px; height: 78px; object-fit: cover; border-radius: 8px; }
     .upload-selected { align-self: center; color: #098b4a; font-weight: 850; }
-    .proof-link { display: inline-flex; align-items: center; gap: 8px; color: var(--navy); font-weight: 850; text-decoration: none; }
+    .proof-link { display: inline-flex; align-items: center; gap: 8px; color: var(--navy); font-weight: 850; text-decoration: none; border: 0; background: transparent; padding: 0; cursor: pointer; font: inherit; }
     .proof-thumb { width: 58px; height: 44px; border-radius: 8px; object-fit: cover; border: 1px solid var(--line); background: #eef3fb; }
     .proof-open { display: inline-flex; align-items: center; gap: 4px; color: #098b4a; }
+    .proof-modal { position: fixed; inset: 0; z-index: 90; display: none; place-items: center; padding: 22px; }
+    .proof-modal.show { display: grid; }
+    .proof-modal-backdrop { position: absolute; inset: 0; border: 0; background: rgba(0, 16, 44, .72); cursor: pointer; }
+    .proof-modal-card { position: relative; z-index: 1; width: min(920px, 96vw); max-height: 92vh; border-radius: 20px; overflow: hidden; background: #fff; box-shadow: 0 24px 70px rgba(0, 20, 58, .45); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+    .proof-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; background: linear-gradient(135deg, #001f55, #00143a); color: #fff; font-weight: 900; }
+    .proof-modal-close { width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.10); color: #fff; font-size: 24px; line-height: 1; cursor: pointer; }
+    .proof-modal-image-wrap { min-height: 260px; max-height: calc(92vh - 116px); display: grid; place-items: center; background: #071a3d; overflow: auto; }
+    .proof-modal-image { max-width: 100%; max-height: calc(92vh - 116px); object-fit: contain; display: block; }
+    .proof-modal-note { margin: 0; padding: 12px 18px; color: #52627d; font-weight: 700; background: #f6f9fd; }
     .record-layout { display: grid; grid-template-columns: 110px 1fr; gap: 16px; }
     .mini-card { padding: 22px; margin-bottom: 18px; }
     .top-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
@@ -1170,6 +1179,19 @@
   </footer>
 
   <div class="toast" id="toast"></div>
+  <div class="proof-modal" id="proofModal" role="dialog" aria-modal="true" aria-hidden="true">
+    <button class="proof-modal-backdrop" type="button" data-proof-close aria-label="ปิดรูป"></button>
+    <div class="proof-modal-card">
+      <div class="proof-modal-head">
+        <strong>รูปหลักฐานการวิ่ง</strong>
+        <button class="proof-modal-close" type="button" data-proof-close aria-label="ปิด">×</button>
+      </div>
+      <div class="proof-modal-image-wrap">
+        <img class="proof-modal-image" id="proofModalImage" alt="รูปหลักฐานการวิ่ง">
+      </div>
+      <p class="proof-modal-note" id="proofModalNote">กดพื้นที่ด้านนอกหรือปุ่ม × เพื่อปิดรูป</p>
+    </div>
+  </div>
   <input type="file" id="profilePhotoInput" accept="image/png,image/jpeg" hidden>
 
   <script>
@@ -1637,7 +1659,7 @@
       return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
     }
 
-    function getRunnerAvatarSrc(user = {}, offset = 0) {
+    function getRunnerAvatarSrc(user = {}) {
       const palette = [
         ["#fff4e8", "#ff4518", "#001f55"],
         ["#eaf7ff", "#0088cc", "#ff7a00"],
@@ -1648,7 +1670,7 @@
         ["#edf7f6", "#008c8c", "#ff6a00"],
         ["#eef3ff", "#2446a8", "#ff4518"]
       ];
-      const seed = stringSeed(`${user.code || user.name || "runner"}-${offset}`);
+      const seed = stringSeed(user.code || user.name || "runner");
       const colors = palette[seed % palette.length];
       const flip = seed % 2 ? -1 : 1;
       const bodyTilt = (seed % 7) - 3;
@@ -1686,12 +1708,11 @@
     function getAvatarSrc(user = {}) {
       const photo = user.profilePhotoBase64 || getProfilePhoto(user.code);
       if (photo) return photo;
-      return `https://ui-avatars.com/api/?background=eaf2ff&color=001f55&name=${encodeURIComponent(user.name || user.code || "INVE")}`;
+      return getRunnerAvatarSrc(user);
     }
 
-    function getRankingAvatarSrc(user = {}, offset = 0) {
-      const photo = user.profilePhotoBase64 || getProfilePhoto(user.code);
-      return photo || getRunnerAvatarSrc(user, offset);
+    function getRankingAvatarSrc(user = {}) {
+      return getAvatarSrc(user);
     }
 
     async function loadSheetRows(sheetName) {
@@ -2415,16 +2436,53 @@
       return fileId ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w180` : text;
     }
 
+    function getProofPreviewUrl(url) {
+      const text = String(url || "");
+      if (!text) return "";
+      if (/^data:image\//i.test(text)) return text;
+      const fileId = getDriveFileId(text);
+      return fileId ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1400` : text;
+    }
+
     function renderProofCell(run) {
       const imageUrl = String(run.imageUrl || "");
       if (!imageUrl) return "-";
       const thumbnailUrl = getProofThumbnailUrl(imageUrl);
       return `
-        <a class="proof-link" href="${escapeHtml(imageUrl)}" target="_blank" rel="noopener">
+        <button class="proof-link" type="button" data-proof-preview data-proof-url="${escapeHtml(imageUrl)}">
           <img class="proof-thumb" src="${escapeHtml(thumbnailUrl)}" alt="รูปหลักฐานการวิ่ง" loading="lazy" onerror="this.style.display='none'">
           <span class="proof-open">✅ ดูรูป</span>
-        </a>
+        </button>
       `;
+    }
+
+    function openProofModal(imageUrl) {
+      const modal = document.getElementById("proofModal");
+      const image = document.getElementById("proofModalImage");
+      const note = document.getElementById("proofModalNote");
+      if (!modal || !image) return;
+      image.style.display = "block";
+      image.src = getProofPreviewUrl(imageUrl);
+      image.onerror = () => {
+        image.style.display = "none";
+        if (note) note.textContent = "รูปไม่สามารถแสดงในเว็บได้ กรุณาตรวจสอบสิทธิ์ไฟล์ใน Google Drive";
+      };
+      image.onload = () => {
+        if (note) note.textContent = "กดพื้นที่ด้านนอกหรือปุ่ม × เพื่อปิดรูป";
+      };
+      modal.classList.add("show");
+      modal.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeProofModal() {
+      const modal = document.getElementById("proofModal");
+      const image = document.getElementById("proofModalImage");
+      if (!modal) return;
+      modal.classList.remove("show");
+      modal.setAttribute("aria-hidden", "true");
+      if (image) image.src = "";
+      document.body.style.overflow = "";
     }
 
     function renderDashboard() {
@@ -2593,6 +2651,18 @@
     }
 
     document.addEventListener("click", event => {
+      const proofClose = event.target.closest("[data-proof-close]");
+      if (proofClose) {
+        event.preventDefault();
+        closeProofModal();
+        return;
+      }
+      const proofTrigger = event.target.closest("[data-proof-preview]");
+      if (proofTrigger) {
+        event.preventDefault();
+        openProofModal(proofTrigger.dataset.proofUrl || "");
+        return;
+      }
       const profileTrigger = event.target.closest("[data-profile-upload]");
       if (profileTrigger) {
         event.preventDefault();
@@ -2604,6 +2674,10 @@
       if (!link) return;
       event.preventDefault();
       setPage(link.dataset.pageLink);
+    });
+
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") closeProofModal();
     });
 
     window.addEventListener("popstate", () => {
