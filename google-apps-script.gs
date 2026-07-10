@@ -76,17 +76,16 @@ function systemCheck() {
 
 function testDriveUploadAccess() {
   setupSheets();
-  const folder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
   const fileName = `INVE_UPLOAD_TEST_${Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd_HHmmss')}.txt`;
   try {
-    const file = folder.createFile(Utilities.newBlob('INVE BURN RUNNING upload test', 'text/plain', fileName));
-    const url = file.getUrl();
-    file.setTrashed(true);
+    const created = createDriveFile_(Utilities.newBlob('INVE BURN RUNNING upload test', 'text/plain', fileName), fileName);
+    trashDriveFile_(created.id);
     return {
       ok: true,
       message: 'ทดสอบเขียนไฟล์ Google Drive สำเร็จ ระบบอัปโหลดพร้อมใช้งาน',
       fileName,
-      url
+      url: created.url,
+      method: created.method
     };
   } catch (err) {
     throw new Error(friendlyError_(err));
@@ -304,16 +303,87 @@ function saveImage_(imageData, fileInfo) {
   const safeName = sanitizeFileName_(`ครั้งที่ ${fileInfo.runNumber} ${fileInfo.code} ${fileInfo.name} ${dateText}.${extension}`);
   try {
     const blob = Utilities.newBlob(Utilities.base64Decode(match[2]), match[1], safeName);
+    return createDriveFile_(blob, safeName).url;
+  } catch (err) {
+    throw new Error(friendlyError_(err));
+  }
+}
+
+function createDriveFile_(blob, fileName) {
+  try {
     const file = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID).createFile(blob);
     try {
       file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     } catch (sharingErr) {
-      Logger.log(`Skip public sharing for ${safeName}: ${sharingErr.message}`);
+      Logger.log(`Skip public sharing for ${fileName}: ${sharingErr.message}`);
     }
-    return file.getUrl();
-  } catch (err) {
-    throw new Error(friendlyError_(err));
+    return { id: file.getId(), url: file.getUrl(), method: 'DriveApp' };
+  } catch (driveErr) {
+    Logger.log(`DriveApp upload failed, fallback to Drive API: ${driveErr.message}`);
+    return createDriveFileWithApi_(blob, fileName);
   }
+}
+
+function createDriveFileWithApi_(blob, fileName) {
+  const boundary = `inve_burn_${Utilities.getUuid()}`;
+  const metadata = {
+    name: fileName,
+    parents: [CONFIG.DRIVE_FOLDER_ID]
+  };
+  const head = [
+    `--${boundary}`,
+    'Content-Type: application/json; charset=UTF-8',
+    '',
+    JSON.stringify(metadata),
+    `--${boundary}`,
+    `Content-Type: ${blob.getContentType()}`,
+    '',
+    ''
+  ].join('\r\n');
+  const tail = `\r\n--${boundary}--`;
+  const payload = Utilities.newBlob(head).getBytes()
+    .concat(blob.getBytes())
+    .concat(Utilities.newBlob(tail).getBytes());
+
+  const response = UrlFetchApp.fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+    method: 'post',
+    contentType: `multipart/related; boundary=${boundary}`,
+    headers: {
+      Authorization: `Bearer ${ScriptApp.getOAuthToken()}`
+    },
+    payload,
+    muteHttpExceptions: true
+  });
+  const status = response.getResponseCode();
+  const text = response.getContentText();
+  if (status < 200 || status >= 300) {
+    throw new Error(`Google Drive API upload failed (${status}): ${text}`);
+  }
+  const data = JSON.parse(text);
+  return {
+    id: data.id,
+    url: data.webViewLink || `https://drive.google.com/file/d/${data.id}/view`,
+    method: 'Drive API'
+  };
+}
+
+function trashDriveFile_(fileId) {
+  if (!fileId) return;
+  try {
+    DriveApp.getFileById(fileId).setTrashed(true);
+    return;
+  } catch (driveErr) {
+    Logger.log(`DriveApp trash failed, fallback to Drive API: ${driveErr.message}`);
+  }
+  UrlFetchApp.fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}`, {
+    method: 'patch',
+    contentType: 'application/json',
+    headers: {
+      Authorization: `Bearer ${ScriptApp.getOAuthToken()}`
+    },
+    payload: JSON.stringify({ trashed: true }),
+    muteHttpExceptions: true
+  });
 }
 
 function friendlyError_(err) {
