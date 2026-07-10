@@ -18,6 +18,11 @@
 
     * { box-sizing: border-box; }
 
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 18px;
+    }
+
     body {
       margin: 0;
       font-family: "Segoe UI", Tahoma, Arial, sans-serif;
@@ -126,7 +131,7 @@
       list-style: none;
     }
 
-    .toc-grid li,
+    .toc-grid a,
     .info-list li,
     .steps li {
       border: 1px solid #e4edf8;
@@ -134,6 +139,22 @@
       background: #f8fbff;
       padding: 12px 14px;
       font-weight: 700;
+    }
+
+    .toc-grid a {
+      display: block;
+      color: var(--navy);
+      text-decoration: none;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease, color .18s ease;
+    }
+
+    .toc-grid a:hover,
+    .toc-grid a:focus {
+      border-color: rgba(255, 74, 31, .5);
+      background: #fff6f1;
+      color: var(--orange);
+      outline: none;
+      transform: translateY(-1px);
     }
 
     .info-list,
@@ -287,20 +308,20 @@
     <section class="section">
       <h2>สารบัญ</h2>
       <ul class="toc-grid">
-        <li>ภาพรวมระบบ</li>
-        <li>คู่มือสำหรับพนักงาน</li>
-        <li>1. หน้าแรกและอันดับรวม</li>
-        <li>2. ลงทะเบียนเข้าร่วมกิจกรรม</li>
-        <li>3. เข้าสู่ระบบ</li>
-        <li>4. หน้าโปรไฟล์พนักงาน</li>
-        <li>5. เปลี่ยนรูปโปรไฟล์</li>
-        <li>6. บันทึกผลการวิ่งและอัปโหลดรูป</li>
-        <li>7. คลิกดูรูปหลักฐานที่อัปโหลด</li>
-        <li>8. ออกจากระบบ</li>
+        <li><a href="#overview">ภาพรวมระบบ</a></li>
+        <li><a href="#employee-guide">คู่มือสำหรับพนักงาน</a></li>
+        <li><a href="#home-ranking">1. หน้าแรกและอันดับรวม</a></li>
+        <li><a href="#register">2. ลงทะเบียนเข้าร่วมกิจกรรม</a></li>
+        <li><a href="#login">3. เข้าสู่ระบบ</a></li>
+        <li><a href="#profile">4. หน้าโปรไฟล์พนักงาน</a></li>
+        <li><a href="#profile-photo">5. เปลี่ยนรูปโปรไฟล์</a></li>
+        <li><a href="#upload-run">6. บันทึกผลการวิ่งและอัปโหลดรูป</a></li>
+        <li><a href="#view-proof">7. คลิกดูรูปหลักฐานที่อัปโหลด</a></li>
+        <li><a href="#logout">8. ออกจากระบบ</a></li>
       </ul>
     </section>
 
-    <section class="section">
+    <section id="overview" class="section">
       <h2>ภาพรวมระบบ</h2>
       <p>ระบบ INVE BURN RUNNING 2026 เป็นระบบสำหรับกิจกรรมสะสมระยะวิ่งของพนักงาน โดยพนักงานสามารถลงทะเบียน เลือกเป้าหมายระยะทาง และบันทึกผลการวิ่งพร้อมรูปหลักฐานได้ด้วยตนเอง</p>
       <ul class="info-list">
@@ -327,10 +348,10 @@
       <div class="tip">หากมีปัญหาในการใช้งาน ให้ติดต่อคุณอโนชา หอยศรีจันทร์ โทร. 122</div>
     </section>
 
-    <section class="section">
+    <section id="employee-guide" class="section">
       <h2>คู่มือสำหรับพนักงาน</h2>
 
-      <h3>1. หน้าแรกและอันดับรวม</h3>
+      <h3 id="home-ranking">1. หน้าแรกและอันดับรวม</h3>
       <p>เมื่อเปิดเว็บไซต์ จะพบหน้าแรกของกิจกรรม ซึ่งแสดงข้อมูลสรุปและอันดับผู้เข้าร่วมกิจกรรม</p>
       <div class="screen"><img src="docs/screenshots/01-home.png" alt="หน้าแรก"></div>
       <ul class="plain-list">
@@ -344,7 +365,7 @@
       <p>เมนูเกี่ยวกับกิจกรรมใช้สำหรับอ่านรายละเอียดกิจกรรม กติกา ช่วงรับสมัคร และช่วงสะสมระยะวิ่ง</p>
       <div class="screen"><img src="docs/screenshots/05-about.png" alt="หน้าเกี่ยวกับกิจกรรม"></div>
 
-      <h3>2. ลงทะเบียนเข้าร่วมกิจกรรม</h3>
+      <h3 id="register">2. ลงทะเบียนเข้าร่วมกิจกรรม</h3>
       <p>กดปุ่มลงทะเบียนที่ด้านบนของหน้าเว็บไซต์</p>
       <div class="screen"><img src="docs/screenshots/02-register.png" alt="หน้าลงทะเบียน"></div>
       <ol class="steps">
@@ -357,7 +378,7 @@
       </ol>
       <div class="tip">หากบัญชีเคยลงทะเบียนแล้ว ระบบจะแจ้งว่าบัญชีนี้มีอยู่แล้ว ให้ไปหน้าเข้าสู่ระบบแทน</div>
 
-      <h3>3. เข้าสู่ระบบ</h3>
+      <h3 id="login">3. เข้าสู่ระบบ</h3>
       <p>กดปุ่มเข้าสู่ระบบที่ด้านบนของหน้าเว็บไซต์</p>
       <div class="screen"><img src="docs/screenshots/03-login.png" alt="หน้าเข้าสู่ระบบ"></div>
       <ol class="steps">
@@ -368,7 +389,7 @@
         <li>รอจนระบบแจ้งว่าเข้าสู่ระบบสำเร็จ และเข้าสู่หน้าโปรไฟล์</li>
       </ol>
 
-      <h3>4. หน้าโปรไฟล์พนักงาน</h3>
+      <h3 id="profile">4. หน้าโปรไฟล์พนักงาน</h3>
       <p>หลังเข้าสู่ระบบ ระบบจะแสดงหน้าโปรไฟล์และแดชบอร์ดส่วนตัวของพนักงาน</p>
       <div class="screen"><img src="docs/screenshots/06-employee-dashboard.png" alt="หน้าโปรไฟล์พนักงาน"></div>
       <ul class="plain-list">
@@ -379,7 +400,7 @@
         <li>ประวัติการบันทึกผลการวิ่ง</li>
       </ul>
 
-      <h3>5. เปลี่ยนรูปโปรไฟล์</h3>
+      <h3 id="profile-photo">5. เปลี่ยนรูปโปรไฟล์</h3>
       <p>รูปโปรไฟล์จะใช้แสดงในหน้าโปรไฟล์ หน้าแรก และหน้าอันดับ หากไม่ใส่รูป ระบบจะแสดงรูปนักวิ่งการ์ตูนแทน</p>
       <ol class="steps">
         <li>เข้าสู่ระบบ</li>
@@ -389,7 +410,7 @@
         <li>รอจนระบบอัปเดตรูปสำเร็จ</li>
       </ol>
 
-      <h3>6. บันทึกผลการวิ่งและอัปโหลดรูป</h3>
+      <h3 id="upload-run">6. บันทึกผลการวิ่งและอัปโหลดรูป</h3>
       <p>ในหน้าโปรไฟล์ ให้ดูที่กล่องบันทึกผลการวิ่ง</p>
       <div class="screen"><img src="docs/screenshots/08-run-upload-selected.png" alt="เลือกไฟล์ก่อนบันทึกผลวิ่ง"></div>
       <ol class="steps">
@@ -403,7 +424,7 @@
       </ol>
       <div class="tip">รูปหลักฐานรองรับ JPG, JPEG และ PNG ขนาดไม่เกิน 5MB และควรเห็นข้อมูลการวิ่งชัดเจน</div>
 
-      <h3>7. คลิกดูรูปหลักฐานที่อัปโหลด</h3>
+      <h3 id="view-proof">7. คลิกดูรูปหลักฐานที่อัปโหลด</h3>
       <p>เมื่อบันทึกผลสำเร็จแล้ว รายการผลการวิ่งจะแสดงในตารางประวัติการบันทึกผลการวิ่ง</p>
       <ol class="steps">
         <li>ไปที่ตารางประวัติการบันทึกผลการวิ่ง</li>
@@ -413,7 +434,7 @@
       </ol>
       <div class="screen"><img src="docs/screenshots/07-proof-popup.png" alt="Popup ดูรูปหลักฐานการวิ่ง"></div>
 
-      <h3>8. ออกจากระบบ</h3>
+      <h3 id="logout">8. ออกจากระบบ</h3>
       <ol class="steps">
         <li>กดปุ่มออกที่ด้านบนของหน้าเว็บ</li>
         <li>ระบบจะกลับไปหน้าแรก</li>
