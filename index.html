@@ -144,6 +144,30 @@
     .btn-navy { color: #fff; background: linear-gradient(135deg, #001f55, #021843); box-shadow: 0 8px 18px rgba(0,31,85,.22); }
     .btn-orange { color: #fff; background: linear-gradient(135deg, var(--orange), var(--orange-2)); }
     .btn-ghost { border: 1px solid #cdd9ea; background: #fff; color: var(--navy); }
+    .manual-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      margin-top: 18px;
+      min-height: 48px;
+      border: 1.5px solid var(--orange);
+      border-radius: 12px;
+      background: #fff7f2;
+      color: var(--orange);
+      text-decoration: none;
+      font-weight: 900;
+      transition: .18s ease;
+    }
+    .manual-link:hover,
+    .manual-link:focus {
+      background: var(--orange);
+      color: #fff;
+      outline: none;
+      transform: translateY(-1px);
+      box-shadow: 0 12px 22px rgba(255, 74, 31, .18);
+    }
 
     .page { display: none; min-height: calc(100vh - 168px); }
     .page.active { display: block; }
@@ -718,6 +742,7 @@
         <a href="#home" class="active" data-page-link="home">⌂ หน้าแรก</a>
         <a href="#ranking" data-page-link="ranking">อันดับ</a>
         <a href="#about" data-page-link="about">เกี่ยวกับกิจกรรม</a>
+        <a href="employee-manual.html">คู่มือการใช้งาน</a>
         <a href="#admin-login" data-page-link="adminLogin">ผู้ดูแลระบบ</a>
       </nav>
       <div class="nav-actions" id="guestActions">
@@ -782,6 +807,7 @@
               <li>สามารถบันทึกระยะได้ไม่จำกัดจำนวนครั้ง</li>
               <li>ผู้ที่มีระยะสะสมสูงสุดจะได้รับรางวัลตามลำดับ</li>
             </ul>
+            <a class="manual-link" href="employee-manual.html">📘 เปิดคู่มือการใช้งาน</a>
           </div>
         </aside>
       </div>
@@ -803,6 +829,7 @@
               <li>สามารถบันทึกระยะได้ไม่จำกัดจำนวนครั้ง</li>
               <li>ผู้ที่มีระยะสะสมสูงสุดจะได้รับรางวัลตามลำดับ</li>
             </ul>
+            <a class="manual-link" href="employee-manual.html">📘 เปิดคู่มือการใช้งาน</a>
           </div>
         </section>
 
