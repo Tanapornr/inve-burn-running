@@ -923,6 +923,9 @@
 
       <div class="container section-space">
         <div class="stats-grid" id="userStats"></div>
+        <section class="panel" style="margin-top:18px">
+          <div class="panel-body" id="profileSummary"></div>
+        </section>
       </div>
 
       <div class="container dashboard-grid">
@@ -1137,6 +1140,7 @@
   <script>
     const CONFIG = {
       apiUrl: "https://script.google.com/macros/s/AKfycbx72kRdiVL_FS1LQOtTHKlM9Hjr3KRhT1HLr1UCTJJ-tsJiakmuLARR8gNugcHWjbA/exec",
+      apiProxyUrl: "/api/apps-script",
       demoMode: false,
       spreadsheetId: "1jntQZj1u9nb2eypIQcfrdnbe3CeVvBLY5jphTo-Q1TQ",
       employeesSheetName: "Employees"
@@ -1243,11 +1247,37 @@
       };
     }
 
+    async function apiProxy(action, payload = {}) {
+      if (!CONFIG.apiProxyUrl) throw new Error("ยังไม่ได้ตั้งค่า API Proxy");
+      const res = await fetch(CONFIG.apiProxyUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...payload })
+      });
+      let data;
+      try {
+        data = await res.json();
+      } catch (err) {
+        throw new Error("ระบบข้อมูลตอบกลับไม่ถูกต้อง กรุณาลองใหม่");
+      }
+      if (!res.ok || !data.ok) {
+        const error = new Error(data?.message || "ระบบข้อมูลยังไม่พร้อมใช้งาน");
+        error.apiResponded = true;
+        throw error;
+      }
+      return data;
+    }
+
     async function api(action, payload = {}) {
       if (CONFIG.demoMode) return demoApi(action, payload);
       if (action === "lookupEmployee") {
         const cachedEmployee = findCachedEmployee(payload.code || payload.employeeCode);
         if (cachedEmployee) return { ok: true, employee: cachedEmployee };
+        try {
+          return await apiProxy(action, payload);
+        } catch (err) {
+          if (err.apiResponded) throw err;
+        }
         if (CONFIG.apiUrl) {
           try {
             return await apiJsonp(action, payload);
@@ -1261,6 +1291,11 @@
       }
       if (action === "login") {
         try {
+          return await apiProxy(action, payload);
+        } catch (err) {
+          if (err.apiResponded) throw err;
+        }
+        try {
           return await apiJsonp(action, payload);
         } catch (err) {
           return loginFromSheet(payload);
@@ -1271,31 +1306,46 @@
       }
       if (action === "register") {
         try {
+          return await apiProxy(action, payload);
+        } catch (err) {
+          if (err.apiResponded) throw err;
+        }
+        try {
           return await apiJsonp(action, payload);
         } catch (err) {
           return registerViaPostAndSync(payload, err);
         }
       }
       if (["getDashboard"].includes(action)) {
+        try {
+          return await apiProxy(action, payload);
+        } catch (err) {
+          console.warn("API proxy dashboard failed", err);
+        }
         return apiJsonp(action, payload);
       }
       if (action === "addRun") {
-        const beforeCount = appState.runs.length;
-        const requestBody = JSON.stringify({ action, ...payload });
-        await fetch(CONFIG.apiUrl, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: requestBody
-        });
-        const dashboard = await waitForRunSync(payload.code, beforeCount);
-        const syncedRuns = dashboard?.runs || [];
-        if (!dashboard?.employee || syncedRuns.length <= beforeCount) throw new Error("บันทึกผลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
-        return {
-          ok: true,
-          employee: dashboard.employee,
-          runs: syncedRuns
-        };
+        try {
+          return await apiProxy(action, payload);
+        } catch (err) {
+          if (err.apiResponded) throw err;
+          const beforeCount = appState.runs.length;
+          const requestBody = JSON.stringify({ action, ...payload });
+          await fetch(CONFIG.apiUrl, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: requestBody
+          });
+          const dashboard = await waitForRunSync(payload.code, beforeCount);
+          const syncedRuns = dashboard?.runs || [];
+          if (!dashboard?.employee || syncedRuns.length <= beforeCount) throw new Error("บันทึกผลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+          return {
+            ok: true,
+            employee: dashboard.employee,
+            runs: syncedRuns
+          };
+        }
       }
       const requestBody = JSON.stringify({ action, ...payload });
       try {
@@ -1516,7 +1566,12 @@
       }
       if (!CONFIG.demoMode && CONFIG.apiUrl) {
         try {
-          const data = await apiJsonp("listEmployees", {});
+          let data;
+          try {
+            data = await apiProxy("listEmployees", {});
+          } catch (err) {
+            data = await apiJsonp("listEmployees", {});
+          }
           appState.employees = (data.employees || []).map(normalizeEmployeeRecord);
           writeCache(EMPLOYEES_CACHE_KEY, appState.employees);
           if (appState.employees.length) return appState.employees;
@@ -2181,6 +2236,20 @@
           <div><p class="stat-label">${label}</p><p class="stat-value">${value}</p><p class="stat-sub">${sub}</p></div>
         </article>
       `).join("");
+      document.getElementById("profileSummary").innerHTML = `
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center">
+          <img src="https://ui-avatars.com/api/?background=eaf2ff&color=001f55&name=${encodeURIComponent(user.name)}" alt="profile" style="width:86px;height:86px;border-radius:50%;border:1px solid var(--line)">
+          <div>
+            <h2 style="margin:0 0 8px">โปรไฟล์ของฉัน</h2>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">
+              <div><small class="stat-label">ชื่อ-นามสกุล</small><b>${user.name}</b></div>
+              <div><small class="stat-label">รหัสพนักงาน</small><b>${user.code}</b></div>
+              <div><small class="stat-label">แผนก</small><b>${user.department || "-"}</b></div>
+              <div><small class="stat-label">เป้าหมาย</small><b>${goal} KM</b></div>
+            </div>
+          </div>
+        </div>
+      `;
       document.getElementById("historyRows").innerHTML = appState.runs.map(run => `
         <tr>
           <td>${new Date(run.date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}</td>
@@ -2233,6 +2302,34 @@
         reader.onload = () => resolve(reader.result);
         reader.onerror = reject;
         reader.readAsDataURL(file);
+      });
+    }
+
+    function fileToOptimizedBase64(file) {
+      return new Promise((resolve, reject) => {
+        const objectUrl = URL.createObjectURL(file);
+        const image = new Image();
+        image.onload = () => {
+          try {
+            const maxSize = 1400;
+            const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, Math.round(image.width * scale));
+            canvas.height = Math.max(1, Math.round(image.height * scale));
+            const context = canvas.getContext("2d");
+            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(objectUrl);
+            resolve(canvas.toDataURL("image/jpeg", 0.78));
+          } catch (err) {
+            URL.revokeObjectURL(objectUrl);
+            fileToBase64(file).then(resolve, reject);
+          }
+        };
+        image.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          fileToBase64(file).then(resolve, reject);
+        };
+        image.src = objectUrl;
       });
     }
 
@@ -2358,10 +2455,15 @@
       if (!file) return toast("กรุณาอัปโหลดรูปหลักฐานการวิ่ง 1 รูป");
       const distance = Number(document.getElementById("runDistance").value);
       if (!distance || distance <= 0) return toast("กรุณากรอกระยะทางที่ถูกต้อง");
-      setButtonLoading(submitButton, true, "กำลังอัปโหลด...");
-      toast("กำลังอัปโหลดรูปและบันทึกผล กรุณารอสักครู่");
+      const uploadStatus = document.getElementById("runUploadStatus");
+      setButtonLoading(submitButton, true, "กำลังย่อรูป...");
+      uploadStatus.style.display = "block";
+      uploadStatus.textContent = "⏳ กำลังย่อรูปก่อนอัปโหลด...";
       try {
-        const imageData = file ? await fileToBase64(file) : "";
+        const imageData = file ? await fileToOptimizedBase64(file) : "";
+        setButtonLoading(submitButton, true, "กำลังบันทึก...");
+        uploadStatus.textContent = "⏳ กำลังอัปโหลดและบันทึกผล...";
+        toast("กำลังอัปโหลดรูปและบันทึกผล กรุณารอสักครู่");
         const { employee, runs } = await api("addRun", {
           code: appState.currentUser.code,
           distance,
