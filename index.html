@@ -841,7 +841,7 @@
                 <input type="password" id="confirmPassword" required minlength="6" />
               </div>
             </div>
-            <button class="btn btn-navy" style="width:min(520px,100%);margin:28px auto 0;display:flex">🏃 สมัครเข้าร่วม</button>
+            <button class="btn btn-navy" id="registerSubmitBtn" type="submit" style="width:min(520px,100%);margin:28px auto 0;display:flex">🏃 สมัครเข้าร่วม</button>
             <p class="helper" id="registrationWindowText" style="text-align:center"></p>
             <p style="text-align:center;margin:10px 0 0">มีบัญชีอยู่แล้ว? <a class="muted-link" href="#login" data-page-link="login">เข้าสู่ระบบ</a></p>
           </form>
@@ -979,7 +979,7 @@
               </div>
               <label for="runNote" style="margin-top:14px">หมายเหตุ (ไม่บังคับ)</label>
               <textarea id="runNote" placeholder="เช่น วิ่งช่วงเย็น อากาศดี"></textarea>
-              <button class="btn btn-orange" style="width:100%;margin-top:12px">บันทึกผลการวิ่ง</button>
+              <button class="btn btn-orange" id="runSubmitBtn" type="submit" style="width:100%;margin-top:12px">บันทึกผลการวิ่ง</button>
             </form>
           </div>
         </section>
@@ -1142,6 +1142,9 @@
       employeesSheetName: "Employees"
     };
     const CURRENT_USER_KEY = "inveBurnCurrentUser";
+    const DASHBOARD_CACHE_KEY = "inveBurnDashboardCache";
+    const EMPLOYEES_CACHE_KEY = "inveBurnEmployeesCache";
+    const CACHE_TTL = 6 * 60 * 60 * 1000;
     const GOAL_DISTANCES = [10, 20];
     const REGISTRATION_START = new Date("2026-07-09T00:00:00+07:00");
     const REGISTRATION_END = new Date("2026-07-31T23:59:59+07:00");
@@ -1200,9 +1203,51 @@
       window.setTimeout(() => el.classList.remove("show"), 3000);
     }
 
+    function setButtonLoading(button, loading, loadingText = "กำลังดำเนินการ...") {
+      if (!button) return;
+      if (loading) {
+        if (!button.dataset.originalText) button.dataset.originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = loadingText;
+      } else {
+        button.disabled = false;
+        if (button.dataset.originalText) button.textContent = button.dataset.originalText;
+      }
+    }
+
+    function readCache(key, maxAge = CACHE_TTL) {
+      try {
+        const cache = JSON.parse(localStorage.getItem(key) || "null");
+        if (!cache || !cache.savedAt || Date.now() - cache.savedAt > maxAge) return null;
+        return cache.data;
+      } catch (err) {
+        localStorage.removeItem(key);
+        return null;
+      }
+    }
+
+    function writeCache(key, data) {
+      try {
+        localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), data }));
+      } catch (err) {
+        console.warn("Cache write failed", err);
+      }
+    }
+
+    function normalizeEmployeeRecord(employee = {}) {
+      return {
+        ...employee,
+        code: normalizeCode(employee.code),
+        goal: normalizeGoalDistance(employee.goal),
+        total: Number(employee.total || 0)
+      };
+    }
+
     async function api(action, payload = {}) {
       if (CONFIG.demoMode) return demoApi(action, payload);
       if (action === "lookupEmployee") {
+        const cachedEmployee = findCachedEmployee(payload.code || payload.employeeCode);
+        if (cachedEmployee) return { ok: true, employee: cachedEmployee };
         if (CONFIG.apiUrl) {
           try {
             return await apiJsonp(action, payload);
@@ -1296,7 +1341,7 @@
         const timeoutId = window.setTimeout(() => {
           cleanup();
           reject(new Error("เชื่อมต่อระบบข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง"));
-        }, 15000);
+        }, 9000);
 
         function cleanup() {
           window.clearTimeout(timeoutId);
@@ -1358,7 +1403,6 @@
 
     async function registerViaPostAndSync(payload, originalError) {
       const code = normalizeCode(payload.code || payload.employeeCode);
-      await refreshRegisteredDataSafely();
       const beforeHadUser = Boolean(findRegisteredUser(code));
       if (beforeHadUser) throw new Error("บัญชีนี้มีอยู่แล้ว กรุณาเข้าสู่ระบบ");
 
@@ -1412,7 +1456,8 @@
     }
 
     function normalizeCode(code) {
-      return String(code || "").trim().toUpperCase();
+      const value = String(code || "").trim().toUpperCase();
+      return /^\d+$/.test(value) ? value.padStart(3, "0") : value;
     }
 
     function codeMatches(left, right) {
@@ -1427,14 +1472,16 @@
 
     function saveCurrentUserSession(user) {
       if (!user?.code) return;
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+      const normalizedUser = normalizeEmployeeRecord(user);
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(normalizedUser));
+      return normalizedUser;
     }
 
     function restoreCurrentUserSession() {
       try {
         const user = JSON.parse(localStorage.getItem(CURRENT_USER_KEY) || "null");
         if (user?.code) {
-          appState.currentUser = { ...user, goal: normalizeGoalDistance(user.goal) };
+          appState.currentUser = normalizeEmployeeRecord(user);
         }
       } catch (err) {
         localStorage.removeItem(CURRENT_USER_KEY);
@@ -1462,15 +1509,16 @@
 
     async function loadEmployeesFromSheet(force = false) {
       if (!force && appState.employees.length) return appState.employees;
+      const cachedEmployees = readCache(EMPLOYEES_CACHE_KEY);
+      if (cachedEmployees?.length && (!force || !appState.employees.length)) {
+        appState.employees = cachedEmployees.map(normalizeEmployeeRecord);
+        if (!force) return appState.employees;
+      }
       if (!CONFIG.demoMode && CONFIG.apiUrl) {
         try {
           const data = await apiJsonp("listEmployees", {});
-          appState.employees = (data.employees || []).map(employee => ({
-            ...employee,
-            code: normalizeCode(employee.code),
-            goal: normalizeGoalDistance(employee.goal || 10),
-            total: Number(employee.total || 0)
-          }));
+          appState.employees = (data.employees || []).map(normalizeEmployeeRecord);
+          writeCache(EMPLOYEES_CACHE_KEY, appState.employees);
           if (appState.employees.length) return appState.employees;
         } catch (err) {
           console.warn("Load employees from API failed", err);
@@ -1495,6 +1543,7 @@
             total: 0
           };
         });
+      writeCache(EMPLOYEES_CACHE_KEY, appState.employees);
       return appState.employees;
     }
 
@@ -1539,7 +1588,12 @@
 
     async function loadRegisteredData() {
       if (!CONFIG.demoMode && CONFIG.apiUrl) {
-        return loadRegisteredDataFromApi();
+        try {
+          return await loadRegisteredDataFromApi();
+        } catch (err) {
+          if (hydrateDashboardFromCache()) return appState.registeredUsers;
+          throw err;
+        }
       }
       return loadRegisteredDataFromSheet();
     }
@@ -1566,6 +1620,11 @@
 
     async function loadRegisteredDataFromApi() {
       const dashboard = await apiJsonp("getDashboard", {});
+      writeCache(DASHBOARD_CACHE_KEY, {
+        leaderboard: dashboard.leaderboard || [],
+        runs: dashboard.runs || [],
+        stats: dashboard.stats || null
+      });
       applyRegisteredData(dashboard.leaderboard || [], dashboard.runs || []);
 
       if (appState.currentUser?.code) {
@@ -1580,8 +1639,7 @@
 
         try {
           const userDashboard = await apiJsonp("getDashboard", { code: appState.currentUser.code });
-          appState.currentUser = userDashboard.employee || { ...appState.currentUser, ...latestUser };
-          appState.currentUser.goal = normalizeGoalDistance(appState.currentUser.goal);
+          appState.currentUser = normalizeEmployeeRecord(userDashboard.employee || { ...appState.currentUser, ...latestUser });
           appState.runs = userDashboard.runs || appState.runs || [];
           saveCurrentUserSession(appState.currentUser);
         } catch (err) {
@@ -1595,6 +1653,13 @@
       }
 
       return appState.registeredUsers;
+    }
+
+    function hydrateDashboardFromCache() {
+      const cachedDashboard = readCache(DASHBOARD_CACHE_KEY);
+      if (!cachedDashboard) return false;
+      applyRegisteredData(cachedDashboard.leaderboard || [], cachedDashboard.runs || []);
+      return true;
     }
 
     async function loginFromSheet(payload = {}) {
@@ -1655,6 +1720,15 @@
       const employee = employees.find(item => codeMatches(item.code, code));
       if (!employee) throw new Error("ไม่พบรหัสพนักงานนี้ กรุณาตรวจสอบและกรอกใหม่");
       return employee;
+    }
+
+    function findCachedEmployee(code) {
+      const employee = appState.employees.find(item => codeMatches(item.code, code));
+      if (employee) return employee;
+      const cachedEmployees = readCache(EMPLOYEES_CACHE_KEY);
+      if (!cachedEmployees?.length) return null;
+      appState.employees = cachedEmployees.map(normalizeEmployeeRecord);
+      return appState.employees.find(item => codeMatches(item.code, code)) || null;
     }
 
     async function demoApi(action, payload) {
@@ -2063,7 +2137,7 @@
 
     function startRealtimeUpdates() {
       if (CONFIG.demoMode || refreshTimer) return;
-      refreshTimer = window.setInterval(refreshLiveData, 10000);
+      refreshTimer = window.setInterval(refreshLiveData, 7000);
     }
 
     function updateAuthUi() {
@@ -2129,15 +2203,16 @@
 
     async function lookupEmployee() {
       const code = document.getElementById("employeeCode").value.trim();
+      const lookupButton = document.getElementById("lookupEmployeeBtn");
       clearEmployeeFields();
       if (!code) return toast("กรุณากรอกรหัสพนักงานก่อนกดตกลง");
+      setButtonLoading(lookupButton, true, "กำลังค้นหา...");
       try {
-        const registeredDataLoaded = await refreshRegisteredDataSafely();
-        if (registeredDataLoaded && findRegisteredUser(code)) {
+        if (findRegisteredUser(code)) {
           return toast("บัญชีนี้มีอยู่แล้ว กรุณาเข้าสู่ระบบ");
         }
         const { employee } = await api("lookupEmployee", { code });
-        appState.selectedEmployee = employee;
+        appState.selectedEmployee = normalizeEmployeeRecord(employee);
         document.getElementById("employeePrefix").value = employee.prefix || "";
         document.getElementById("employeeFirstName").value = employee.firstName || "";
         document.getElementById("employeeLastName").value = employee.lastName || "";
@@ -2147,6 +2222,8 @@
       } catch (err) {
         clearEmployeeFields();
         toast(err.message);
+      } finally {
+        setButtonLoading(lookupButton, false);
       }
     }
 
@@ -2171,6 +2248,7 @@
 
     document.getElementById("registerForm").addEventListener("submit", async event => {
       event.preventDefault();
+      const submitButton = document.getElementById("registerSubmitBtn");
       if (!isRegistrationOpen()) {
         return toast(new Date() > REGISTRATION_END ? "ปิดการรับสมัครลงทะเบียนแล้ว" : "ยังไม่อยู่ในช่วงรับสมัคร เปิดรับสมัครวันที่ 9 - 31 กรกฎาคม 2569");
       }
@@ -2180,9 +2258,9 @@
         return toast("กรุณากรอกรหัสพนักงานและกดตกลงให้พบข้อมูลก่อนสมัคร");
       }
       if (password !== confirmPassword) return toast("รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน");
+      setButtonLoading(submitButton, true, "กำลังสมัคร...");
       try {
-        const registeredDataLoaded = await refreshRegisteredDataSafely();
-        if (registeredDataLoaded && findRegisteredUser(document.getElementById("employeeCode").value)) {
+        if (findRegisteredUser(document.getElementById("employeeCode").value)) {
           return toast("บัญชีนี้มีอยู่แล้ว กรุณาเข้าสู่ระบบ");
         }
         const payload = {
@@ -2192,19 +2270,25 @@
         };
         const { employee } = await api("register", payload);
         if (!employee) throw new Error("ระบบข้อมูลยังไม่พร้อม กรุณาลองสมัครใหม่อีกครั้ง");
-        appState.currentUser = employee;
+        appState.currentUser = normalizeEmployeeRecord(employee);
         appState.runs = [];
-        saveCurrentUserSession(employee);
-        upsertRegisteredUser(employee);
-        await refreshRegisteredDataSafely();
+        saveCurrentUserSession(appState.currentUser);
+        upsertRegisteredUser(appState.currentUser);
         updateAuthUi();
         renderStats();
         renderLeaderboard();
         renderDashboard();
         toast("ลงทะเบียนสำเร็จ เข้าสู่หน้าพนักงานแล้ว");
         setPage("dashboard");
+        refreshRegisteredDataSafely().then(() => {
+          renderStats();
+          renderLeaderboard();
+          renderDashboard();
+        });
       } catch (err) {
         toast(err.message);
+      } finally {
+        setButtonLoading(submitButton, false);
       }
     });
 
@@ -2216,10 +2300,10 @@
           password: document.getElementById("loginPassword").value
         });
         if (!employee) throw new Error("ระบบข้อมูลยังไม่พร้อม กรุณาลองเข้าสู่ระบบใหม่อีกครั้ง");
-        appState.currentUser = employee;
+        appState.currentUser = normalizeEmployeeRecord(employee);
         appState.runs = runs || appState.runs;
-        saveCurrentUserSession(employee);
-        upsertRegisteredUser(employee);
+        saveCurrentUserSession(appState.currentUser);
+        upsertRegisteredUser(appState.currentUser);
         updateAuthUi();
         renderDashboard();
         setPage("dashboard");
@@ -2261,6 +2345,7 @@
 
     document.getElementById("runForm").addEventListener("submit", async event => {
       event.preventDefault();
+      const submitButton = document.getElementById("runSubmitBtn");
       if (!appState.currentUser?.code) {
         appState.currentUser = null;
         clearCurrentUserSession();
@@ -2271,28 +2356,38 @@
       if (imageInput.files.length > 1) return toast("อัปโหลดได้ครั้งละ 1 รูปเท่านั้น");
       const file = imageInput.files[0];
       if (!file) return toast("กรุณาอัปโหลดรูปหลักฐานการวิ่ง 1 รูป");
+      const distance = Number(document.getElementById("runDistance").value);
+      if (!distance || distance <= 0) return toast("กรุณากรอกระยะทางที่ถูกต้อง");
+      setButtonLoading(submitButton, true, "กำลังอัปโหลด...");
+      toast("กำลังอัปโหลดรูปและบันทึกผล กรุณารอสักครู่");
       try {
         const imageData = file ? await fileToBase64(file) : "";
         const { employee, runs } = await api("addRun", {
           code: appState.currentUser.code,
-          distance: document.getElementById("runDistance").value,
+          distance,
           date: document.getElementById("runDate").value,
           note: document.getElementById("runNote").value,
           imageData
         });
-        appState.currentUser = employee;
+        appState.currentUser = normalizeEmployeeRecord(employee);
         appState.runs = runs;
-        saveCurrentUserSession(employee);
-        upsertRegisteredUser(employee);
-        await refreshRegisteredDataSafely();
+        saveCurrentUserSession(appState.currentUser);
+        upsertRegisteredUser(appState.currentUser);
         renderStats();
         renderLeaderboard();
         renderDashboard();
         event.target.reset();
         resetRunUploadUi();
         toast("บันทึกผลการวิ่งเรียบร้อย");
+        refreshRegisteredDataSafely().then(() => {
+          renderStats();
+          renderLeaderboard();
+          renderDashboard();
+        });
       } catch (err) {
         toast(err.message);
+      } finally {
+        setButtonLoading(submitButton, false);
       }
     });
 
@@ -2370,6 +2465,17 @@
       restoreCurrentUserSession();
       renderDistanceOptions();
       updateRegistrationWindowUi();
+      const hasDashboardCache = hydrateDashboardFromCache();
+      if (hasDashboardCache) {
+        renderStats();
+        renderLeaderboard();
+        updateAuthUi();
+        renderDashboard();
+        renderAdmin();
+      }
+      window.setTimeout(() => {
+        loadEmployeesFromSheet(false).catch(err => console.warn("Employee cache warmup failed", err));
+      }, 2500);
       try {
         if (!CONFIG.demoMode) {
           await loadRegisteredData();
@@ -2378,10 +2484,6 @@
           appState.registeredUsers = [...appState.employees].slice(0, 10);
         }
       } catch (err) {
-        appState.currentUser = null;
-        appState.allRegisteredUsers = [];
-        appState.registeredUsers = [];
-        clearCurrentUserSession();
         console.warn("Initial data load failed", err);
       }
       renderStats();

@@ -278,7 +278,8 @@ function hashPassword_(password) {
 }
 
 function normalizeCode_(code) {
-  return String(code || '').trim().toUpperCase();
+  const value = String(code || '').trim().toUpperCase();
+  return /^\d+$/.test(value) ? value.padStart(3, '0') : value;
 }
 
 function codeMatches_(left, right) {
