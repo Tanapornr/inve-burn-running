@@ -349,6 +349,9 @@
     .home-goal-card h3 small { color: var(--muted); font-size: 12px; }
     .home-goal-card table { font-size: 14px; }
     .home-goal-card th, .home-goal-card td { padding: 10px 12px; }
+    .home-rank-table-wrap { overflow: auto; }
+    .home-rank-name { min-width: 150px; }
+    .home-rank-distance { text-align: right; white-space: nowrap; }
     .home-rank-pager {
       display: flex;
       align-items: center;
@@ -373,7 +376,7 @@
       cursor: not-allowed;
     }
     .home-rank-pager span { color: var(--muted); font-weight: 800; }
-    .ranking-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid #fff; background: #eaf2ff; box-shadow: 0 6px 14px rgba(0,31,85,.12); vertical-align: middle; }
+    .ranking-avatar { width: 54px; height: 54px; aspect-ratio: 1 / 1; border-radius: 15px; object-fit: cover; border: 3px solid #fff; background: #eaf2ff; box-shadow: 0 8px 18px rgba(0,31,85,.16); vertical-align: middle; }
     .ranking-user { display: flex; align-items: center; gap: 10px; min-width: 180px; }
     .ranking-user b { line-height: 1.25; }
     .ranking-podium { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 18px; align-items: end; }
@@ -776,6 +779,50 @@
       .login-card p { margin-bottom: 20px; }
       #adminLoginPage .login-promo { display: none; }
       table { min-width: 560px; }
+      .home-rank-table-wrap { overflow: visible; }
+      .home-rank-table { min-width: 0; border-collapse: separate; border-spacing: 0 10px; }
+      .home-rank-table thead { display: none; }
+      .home-rank-table tbody { display: grid; gap: 10px; padding: 10px; }
+      .home-rank-table .home-rank-row {
+        display: grid;
+        grid-template-columns: 46px 66px minmax(0, 1fr);
+        gap: 4px 10px;
+        align-items: center;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: linear-gradient(90deg, #fff7ea, #fff);
+        box-shadow: 0 10px 22px rgba(0,31,85,.06);
+      }
+      .home-rank-table .home-rank-row td {
+        display: block;
+        padding: 0;
+        border: 0;
+        min-width: 0;
+        text-align: left !important;
+      }
+      .home-rank-table .home-rank-position { grid-column: 1; grid-row: 1 / span 4; align-self: center; }
+      .home-rank-table .home-rank-photo { grid-column: 2; grid-row: 1 / span 4; align-self: center; }
+      .home-rank-table .home-rank-code,
+      .home-rank-table .home-rank-name,
+      .home-rank-table .home-rank-dept,
+      .home-rank-table .home-rank-distance { grid-column: 3; }
+      .home-rank-table .home-rank-code { font-size: 13px; color: var(--muted); font-weight: 800; }
+      .home-rank-table .home-rank-code::before { content: "รหัส "; color: #8794aa; }
+      .home-rank-table .home-rank-name { min-width: 0; font-size: 16px; line-height: 1.35; word-break: break-word; }
+      .home-rank-table .home-rank-dept { color: #52627d; font-size: 13px; font-weight: 800; line-height: 1.35; word-break: break-word; }
+      .home-rank-table .home-rank-dept::before { content: "แผนก "; color: var(--navy); }
+      .home-rank-table .home-rank-distance { text-align: left; font-size: 16px; }
+      .home-rank-table .ranking-avatar { width: 58px; height: 58px; border-radius: 16px; }
+      .home-rank-table .empty-row { display: block; }
+      .home-rank-table .empty-row td {
+        display: block;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fff8ed;
+        min-width: 0;
+      }
     }
   </style>
 </head>
@@ -2183,22 +2230,22 @@
         return `
           <section class="home-goal-card">
             <h3>\u{1F3C6} ${goal} KM <small>${rangeLabel}</small></h3>
-            <div style="overflow:auto">
-              <table>
+            <div class="home-rank-table-wrap">
+              <table class="home-rank-table">
                 <thead><tr><th>\u0e2d\u0e31\u0e19\u0e14\u0e31\u0e1a</th><th>\u0e23\u0e39\u0e1b</th><th>\u0e23\u0e2b\u0e31\u0e2a</th><th>\u0e0a\u0e37\u0e48\u0e2d-\u0e19\u0e32\u0e21\u0e2a\u0e01\u0e38\u0e25</th><th>\u0e41\u0e1c\u0e19\u0e01</th><th>\u0e23\u0e30\u0e22\u0e30\u0e2a\u0e30\u0e2a\u0e21</th></tr></thead>
                 <tbody>
                   ${rows.map((item, index) => {
                     const rankNumber = startIndex + index + 1;
                     return `
-                    <tr>
-                      <td><span class="rank ${rankClass(rankNumber - 1)}">${rankNumber}</span></td>
-                      <td><img class="ranking-avatar" src="${escapeHtml(getRankingAvatarSrc(item, rankNumber - 1))}" alt="${escapeHtml(item.name)}" loading="lazy"></td>
-                      <td>${item.code}</td>
-                      <td><b>${item.name}</b></td>
-                      <td>${item.department || "-"}</td>
-                      <td><b class="orange-text">${fmt.format(item.total || 0)}</b></td>
+                    <tr class="home-rank-row">
+                      <td class="home-rank-position"><span class="rank ${rankClass(rankNumber - 1)}">${rankNumber}</span></td>
+                      <td class="home-rank-photo"><img class="ranking-avatar" src="${escapeHtml(getRankingAvatarSrc(item, rankNumber - 1))}" alt="${escapeHtml(item.name)}" loading="lazy"></td>
+                      <td class="home-rank-code">${item.code}</td>
+                      <td class="home-rank-name"><b>${item.name}</b></td>
+                      <td class="home-rank-dept">${item.department || "-"}</td>
+                      <td class="home-rank-distance"><b class="orange-text">${fmt.format(item.total || 0)} กม.</b></td>
                     </tr>
-                  `; }).join("") || `<tr><td colspan="6" style="text-align:center">\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e21\u0e35\u0e1c\u0e39\u0e49\u0e25\u0e07\u0e17\u0e30\u0e40\u0e1a\u0e35\u0e22\u0e19\u0e23\u0e30\u0e22\u0e30 ${goal} KM</td></tr>`}
+                  `; }).join("") || `<tr class="empty-row"><td colspan="6" style="text-align:center">\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e21\u0e35\u0e1c\u0e39\u0e49\u0e25\u0e07\u0e17\u0e30\u0e40\u0e1a\u0e35\u0e22\u0e19\u0e23\u0e30\u0e22\u0e30 ${goal} KM</td></tr>`}
                 </tbody>
               </table>
             </div>
