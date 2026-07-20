@@ -625,6 +625,8 @@
     .modal.show { display: flex; }
     .modal-card { width: min(520px, 100%); background: #fff; border-radius: 18px; padding: 28px; box-shadow: 0 20px 50px rgba(0,0,0,.24); }
     .modal-card h2 { margin: 0 0 14px; }
+    .modal-card p { color: #52627d; font-weight: 700; margin: 0 0 18px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
     .password-wrap { position: relative; }
     .password-wrap input { padding-right: 48px; }
     .eye-btn { position: absolute; right: 10px; bottom: 7px; width: 34px; height: 34px; border-radius: 8px; background: #eef4ff; color: var(--navy); }
@@ -1224,6 +1226,15 @@
   </footer>
 
   <div class="toast" id="toast"></div>
+  <div class="modal" id="registrationWindowModal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card">
+      <h2 id="registrationWindowModalTitle">แจ้งเตือนการลงทะเบียน</h2>
+      <p id="registrationWindowModalMessage">ระบบยังไม่อยู่ในช่วงรับสมัคร</p>
+      <div class="modal-actions">
+        <button class="btn btn-navy" type="button" data-registration-window-close>ตกลง</button>
+      </div>
+    </div>
+  </div>
   <div class="proof-modal" id="proofModal" role="dialog" aria-modal="true" aria-hidden="true">
     <button class="proof-modal-backdrop" type="button" data-proof-close aria-label="ปิดรูป"></button>
     <div class="proof-modal-card">
@@ -2257,12 +2268,40 @@
       return now >= REGISTRATION_START && now <= REGISTRATION_END;
     }
 
+    function getRegistrationWindowMessage(now = new Date()) {
+      if (now > REGISTRATION_END) return "เลยเวลารับสมัครแล้ว ระบบปิดรับสมัครลงทะเบียนอัตโนมัติ";
+      if (now < REGISTRATION_START) return "ยังไม่ถึงช่วงรับสมัคร ระบบเปิดรับสมัครวันที่ 20 - 25 กรกฎาคม 2569";
+      return "เปิดรับสมัครถึงวันที่ 25 กรกฎาคม 2569";
+    }
+
+    function showRegistrationWindowModal() {
+      const modal = document.getElementById("registrationWindowModal");
+      const title = document.getElementById("registrationWindowModalTitle");
+      const message = document.getElementById("registrationWindowModalMessage");
+      if (!modal || !message) return;
+      const now = new Date();
+      title.textContent = now > REGISTRATION_END ? "ปิดรับสมัครลงทะเบียนแล้ว" : "ยังไม่ถึงช่วงรับสมัคร";
+      message.textContent = getRegistrationWindowMessage(now);
+      modal.classList.add("show");
+      modal.setAttribute("aria-hidden", "false");
+    }
+
+    function closeRegistrationWindowModal() {
+      const modal = document.getElementById("registrationWindowModal");
+      if (!modal) return;
+      modal.classList.remove("show");
+      modal.setAttribute("aria-hidden", "true");
+    }
+
     function updateRegistrationWindowUi() {
       const el = document.getElementById("registrationWindowText");
-      if (!el) return;
-      el.textContent = isRegistrationOpen()
-        ? "เปิดรับสมัครถึงวันที่ 25 กรกฎาคม 2569"
-        : (new Date() > REGISTRATION_END ? "ปิดการรับสมัครลงทะเบียนแล้ว" : "ยังไม่อยู่ในช่วงรับสมัคร ระบบเปิดรับสมัครวันที่ 20 - 25 กรกฎาคม 2569");
+      const submitButton = document.getElementById("registerSubmitBtn");
+      const isOpen = isRegistrationOpen();
+      if (el) el.textContent = getRegistrationWindowMessage();
+      if (submitButton) {
+        submitButton.disabled = !isOpen;
+        submitButton.title = isOpen ? "" : getRegistrationWindowMessage();
+      }
     }
 
     function upsertRegisteredUser(employee) {
@@ -2437,6 +2476,9 @@
         renderDashboard();
         restoreRunFormControls();
       }
+      if (page === "register") {
+        updateRegistrationWindowUi();
+      }
       document.querySelectorAll(".page").forEach(item => item.classList.remove("active"));
       document.getElementById(`${page}Page`).classList.add("active");
       document.querySelectorAll("[data-page-link]").forEach(item => item.classList.toggle("active", item.dataset.pageLink === page));
@@ -2447,6 +2489,9 @@
         }
       }
       if (page === "admin") renderAdmin();
+      if (page === "register" && !isRegistrationOpen()) {
+        window.setTimeout(showRegistrationWindowModal, 120);
+      }
       refreshLiveData();
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
@@ -2741,6 +2786,12 @@
     }
 
     document.addEventListener("click", event => {
+      const registrationClose = event.target.closest("[data-registration-window-close]");
+      if (registrationClose) {
+        event.preventDefault();
+        closeRegistrationWindowModal();
+        return;
+      }
       const proofClose = event.target.closest("[data-proof-close]");
       if (proofClose) {
         event.preventDefault();
@@ -2767,7 +2818,10 @@
     });
 
     document.addEventListener("keydown", event => {
-      if (event.key === "Escape") closeProofModal();
+      if (event.key === "Escape") {
+        closeProofModal();
+        closeRegistrationWindowModal();
+      }
     });
 
     window.addEventListener("popstate", () => {
@@ -2834,7 +2888,8 @@
       event.preventDefault();
       const submitButton = document.getElementById("registerSubmitBtn");
       if (!isRegistrationOpen()) {
-        return toast(new Date() > REGISTRATION_END ? "ปิดการรับสมัครลงทะเบียนแล้ว" : "ยังไม่อยู่ในช่วงรับสมัคร เปิดรับสมัครวันที่ 20 - 25 กรกฎาคม 2569");
+        showRegistrationWindowModal();
+        return toast(getRegistrationWindowMessage());
       }
       const password = document.getElementById("password").value;
       const confirmPassword = document.getElementById("confirmPassword").value;
