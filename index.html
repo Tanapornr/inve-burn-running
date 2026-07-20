@@ -389,19 +389,24 @@
     .check-list li::before { content: "✓"; background: var(--orange); color: #fff; border-radius: 50%; width: 18px; height: 18px; display: grid; place-items: center; font-size: 12px; font-weight: 900; margin-top: 3px; }
     .reward-box {
       margin-top: 22px;
-      padding: 10px;
+      padding: 8px;
       border: 1px solid rgba(255, 145, 60, .34);
       border-radius: 20px;
       background: linear-gradient(135deg, #fff8ef, #ffffff);
       box-shadow: 0 14px 28px rgba(255, 74, 31, .08);
+      text-align: center;
     }
     .reward-poster {
       display: block;
-      width: 100%;
+      width: min(100%, 920px);
+      max-height: 520px;
       height: auto;
+      margin: 0 auto;
       border-radius: 15px;
       background: #fff8ef;
+      object-fit: contain;
     }
+    #aboutPage .reward-poster { max-height: 460px; }
 
     .footer {
       margin-top: 22px;
@@ -728,7 +733,7 @@
       .home-goal-rankings { padding: 12px; }
       .panel-body { padding: 20px 16px; }
       .reward-box { padding: 7px; border-radius: 16px; }
-      .reward-poster { border-radius: 12px; }
+      .reward-poster { width: 100%; max-height: none; border-radius: 12px; }
       .stat-card { min-height: 92px; padding: 16px; gap: 16px; }
       .stat-value { font-size: 28px; }
       .icon-circle { width: 58px; height: 58px; font-size: 26px; }
