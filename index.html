@@ -349,6 +349,30 @@
     .home-goal-card h3 small { color: var(--muted); font-size: 12px; }
     .home-goal-card table { font-size: 14px; }
     .home-goal-card th, .home-goal-card td { padding: 10px 12px; }
+    .home-rank-pager {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 12px 14px 16px;
+      border-top: 1px solid var(--line);
+      background: #fbfdff;
+    }
+    .home-rank-pager button {
+      min-height: 36px;
+      padding: 0 14px;
+      border: 1px solid #cdd9ea;
+      border-radius: 10px;
+      background: #fff;
+      color: var(--navy);
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .home-rank-pager button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+    .home-rank-pager span { color: var(--muted); font-weight: 800; }
     .ranking-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid #fff; background: #eaf2ff; box-shadow: 0 6px 14px rgba(0,31,85,.12); vertical-align: middle; }
     .ranking-user { display: flex; align-items: center; gap: 10px; min-width: 180px; }
     .ranking-user b { line-height: 1.25; }
@@ -1292,6 +1316,7 @@
     const EMPLOYEES_CACHE_KEY = "inveBurnEmployeesCache";
     const CACHE_TTL = 6 * 60 * 60 * 1000;
     const GOAL_DISTANCES = [10, 20];
+    const HOME_LEADERBOARD_PAGE_SIZE = 15;
     const REGISTRATION_START = new Date("2026-07-20T00:00:00+07:00");
     const REGISTRATION_END = new Date("2026-07-25T23:59:59+07:00");
 
@@ -1335,6 +1360,7 @@
       selectedEmployee: null,
       isUploadingRun: false,
       isAdmin: false,
+      homeLeaderboardPages: {},
       rankingFilter: { period: "today", department: "", query: "" }
     };
     let refreshInFlight = false;
@@ -2144,29 +2170,45 @@
     function renderLeaderboard() {
       const allRegisteredUsers = [...appState.allRegisteredUsers].sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
       document.getElementById("leaderboardRows").innerHTML = GOAL_DISTANCES.map(goal => {
-        const rows = allRegisteredUsers
-          .filter(item => Number(item.goal) === goal)
-          .slice(0, 10);
+        const goalRows = allRegisteredUsers.filter(item => Number(item.goal) === goal);
+        const totalPages = Math.max(1, Math.ceil(goalRows.length / HOME_LEADERBOARD_PAGE_SIZE));
+        const currentPage = Math.min(Math.max(Number(appState.homeLeaderboardPages[goal] || 1), 1), totalPages);
+        appState.homeLeaderboardPages[goal] = currentPage;
+        const startIndex = (currentPage - 1) * HOME_LEADERBOARD_PAGE_SIZE;
+        const rows = goalRows.slice(startIndex, startIndex + HOME_LEADERBOARD_PAGE_SIZE);
+        const endRank = Math.min(startIndex + HOME_LEADERBOARD_PAGE_SIZE, goalRows.length);
+        const rangeLabel = goalRows.length
+          ? `อันดับ ${startIndex + 1}-${endRank} จาก ${goalRows.length}`
+          : "ยังไม่มีข้อมูล";
         return `
           <section class="home-goal-card">
-            <h3>\u{1F3C6} ${goal} KM <small>Top 10</small></h3>
+            <h3>\u{1F3C6} ${goal} KM <small>${rangeLabel}</small></h3>
             <div style="overflow:auto">
               <table>
                 <thead><tr><th>\u0e2d\u0e31\u0e19\u0e14\u0e31\u0e1a</th><th>\u0e23\u0e39\u0e1b</th><th>\u0e23\u0e2b\u0e31\u0e2a</th><th>\u0e0a\u0e37\u0e48\u0e2d-\u0e19\u0e32\u0e21\u0e2a\u0e01\u0e38\u0e25</th><th>\u0e41\u0e1c\u0e19\u0e01</th><th>\u0e23\u0e30\u0e22\u0e30\u0e2a\u0e30\u0e2a\u0e21</th></tr></thead>
                 <tbody>
-                  ${rows.map((item, index) => `
+                  ${rows.map((item, index) => {
+                    const rankNumber = startIndex + index + 1;
+                    return `
                     <tr>
-                      <td><span class="rank ${rankClass(index)}">${index + 1}</span></td>
-                      <td><img class="ranking-avatar" src="${escapeHtml(getRankingAvatarSrc(item, index))}" alt="${escapeHtml(item.name)}" loading="lazy"></td>
+                      <td><span class="rank ${rankClass(rankNumber - 1)}">${rankNumber}</span></td>
+                      <td><img class="ranking-avatar" src="${escapeHtml(getRankingAvatarSrc(item, rankNumber - 1))}" alt="${escapeHtml(item.name)}" loading="lazy"></td>
                       <td>${item.code}</td>
                       <td><b>${item.name}</b></td>
                       <td>${item.department || "-"}</td>
                       <td><b class="orange-text">${fmt.format(item.total || 0)}</b></td>
                     </tr>
-                  `).join("") || `<tr><td colspan="6" style="text-align:center">\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e21\u0e35\u0e1c\u0e39\u0e49\u0e25\u0e07\u0e17\u0e30\u0e40\u0e1a\u0e35\u0e22\u0e19\u0e23\u0e30\u0e22\u0e30 ${goal} KM</td></tr>`}
+                  `; }).join("") || `<tr><td colspan="6" style="text-align:center">\u0e22\u0e31\u0e07\u0e44\u0e21\u0e48\u0e21\u0e35\u0e1c\u0e39\u0e49\u0e25\u0e07\u0e17\u0e30\u0e40\u0e1a\u0e35\u0e22\u0e19\u0e23\u0e30\u0e22\u0e30 ${goal} KM</td></tr>`}
                 </tbody>
               </table>
             </div>
+            ${goalRows.length > HOME_LEADERBOARD_PAGE_SIZE ? `
+              <div class="home-rank-pager">
+                <button type="button" data-home-rank-page data-goal="${goal}" data-page="${currentPage - 1}" ${currentPage <= 1 ? "disabled" : ""}>← ก่อนหน้า</button>
+                <span>หน้า ${currentPage} / ${totalPages}</span>
+                <button type="button" data-home-rank-page data-goal="${goal}" data-page="${currentPage + 1}" ${currentPage >= totalPages ? "disabled" : ""}>ถัดไป →</button>
+              </div>
+            ` : ""}
           </section>
         `;
       }).join("");
@@ -2241,11 +2283,12 @@
       container.innerHTML = GOAL_DISTANCES.map(goal => {
         const goalRows = rows
           .filter(item => Number(item.goal) === goal)
-          .slice(0, 3);
-        const podiumOrder = [goalRows[1], goalRows[0], goalRows[2]].filter(Boolean);
+          .slice(0, 10);
+        const podiumRows = goalRows.slice(0, 3);
+        const podiumOrder = [podiumRows[1], podiumRows[0], podiumRows[2]].filter(Boolean);
         return `
           <section class="home-goal-card">
-            <h3>🏆 ${goal} KM <small>Top 3</small></h3>
+            <h3>🏆 ${goal} KM <small>Top 10</small></h3>
             <div class="ranking-podium">
               ${podiumOrder.map(item => {
                 const originalIndex = goalRows.indexOf(item);
@@ -2818,6 +2861,17 @@
       if (registrationClose) {
         event.preventDefault();
         closeRegistrationWindowModal();
+        return;
+      }
+      const homeRankPageButton = event.target.closest("[data-home-rank-page]");
+      if (homeRankPageButton) {
+        event.preventDefault();
+        const goal = Number(homeRankPageButton.dataset.goal);
+        const page = Number(homeRankPageButton.dataset.page);
+        if (goal && page > 0) {
+          appState.homeLeaderboardPages[goal] = page;
+          renderLeaderboard();
+        }
         return;
       }
       const proofClose = event.target.closest("[data-proof-close]");
