@@ -387,6 +387,100 @@
     .check-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
     .check-list li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; color: #17325f; }
     .check-list li::before { content: "✓"; background: var(--orange); color: #fff; border-radius: 50%; width: 18px; height: 18px; display: grid; place-items: center; font-size: 12px; font-weight: 900; margin-top: 3px; }
+    .reward-box {
+      margin-top: 22px;
+      padding: 18px;
+      border: 1px solid rgba(255, 74, 31, .24);
+      border-radius: 20px;
+      background:
+        radial-gradient(circle at top right, rgba(255, 214, 92, .32), transparent 34%),
+        linear-gradient(135deg, #fff8ef, #ffffff);
+      box-shadow: 0 14px 28px rgba(255, 74, 31, .08);
+    }
+    .reward-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 14px;
+      color: var(--navy);
+      font-size: 22px;
+      font-weight: 950;
+    }
+    .reward-title span {
+      display: inline-grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ffcf4d, #ff6c18);
+      color: #fff;
+      box-shadow: 0 8px 18px rgba(255, 108, 24, .22);
+    }
+    .reward-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .reward-card {
+      display: grid;
+      grid-template-columns: 74px 1fr;
+      gap: 14px;
+      align-items: center;
+      min-height: 112px;
+      padding: 14px;
+      border: 1px solid #ffd8be;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .88);
+    }
+    .reward-art {
+      position: relative;
+      width: 74px;
+      height: 74px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #fff2d8, #ffe0be);
+      overflow: hidden;
+    }
+    .egg-tray {
+      display: grid;
+      grid-template-columns: repeat(3, 13px);
+      gap: 5px;
+      padding: 9px;
+      border-radius: 12px;
+      background: #d6e0eb;
+      transform: rotate(-7deg);
+      box-shadow: inset 0 -4px 0 rgba(0, 31, 85, .09);
+    }
+    .egg-tray i {
+      width: 13px;
+      height: 17px;
+      border-radius: 50% 50% 46% 46%;
+      background: linear-gradient(180deg, #fff, #f7d9a8);
+      border: 1px solid rgba(190, 142, 73, .24);
+    }
+    .rice-bag {
+      width: 44px;
+      height: 56px;
+      border-radius: 10px 10px 12px 12px;
+      background: linear-gradient(180deg, #ffffff, #edf4ff);
+      border: 2px solid #c5d8ef;
+      display: grid;
+      place-items: center;
+      color: var(--navy);
+      font-size: 22px;
+      font-weight: 950;
+      box-shadow: 0 6px 12px rgba(0, 31, 85, .10);
+    }
+    .rice-bag::before {
+      content: "";
+      position: absolute;
+      top: 12px;
+      width: 42px;
+      height: 8px;
+      border-radius: 999px;
+      background: #ff6c18;
+      opacity: .9;
+    }
+    .reward-card h3 { margin: 0; font-size: 21px; color: var(--orange); }
+    .reward-card p { margin: 4px 0 0; color: #17325f; font-weight: 900; }
+    .reward-note { margin: 12px 0 0; color: #657898; font-weight: 700; font-size: 14px; }
 
     .footer {
       margin-top: 22px;
@@ -666,6 +760,7 @@
       .admin-card-grid, .goal-blocks, .help-grid { grid-template-columns: 1fr 1fr; }
       .ranking-layout, .contact-layout { grid-template-columns: 1fr; }
       .home-goal-rankings, .ranking-goal-grid { grid-template-columns: 1fr; }
+      .reward-grid { grid-template-columns: 1fr; }
       .ranking-controls { grid-template-columns: 1fr; }
       .period-tabs { width: 100%; }
       .period-tabs button { flex: 1; padding: 10px 8px; }
@@ -712,6 +807,10 @@
       .profile-actions { justify-content: center; }
       .home-goal-rankings { padding: 12px; }
       .panel-body { padding: 20px 16px; }
+      .reward-box { padding: 14px; }
+      .reward-card { grid-template-columns: 62px 1fr; gap: 12px; min-height: 98px; }
+      .reward-art { width: 62px; height: 62px; }
+      .reward-card h3 { font-size: 19px; }
       .stat-card { min-height: 92px; padding: 16px; gap: 16px; }
       .stat-value { font-size: 28px; }
       .icon-circle { width: 58px; height: 58px; font-size: 26px; }
@@ -809,6 +908,31 @@
               <li>ห้ามวิ่งที่ลู่วิ่ง ต้องมีรูปเส้นทางแบบแผนที่มากับระยะทางตอนส่งข้อมูลด้วย</li>
               <li>ผู้ที่มีระยะสะสมครบตามที่กำหนด จะได้รับรางวัลตามที่ระบุไว้</li>
             </ul>
+            <div class="reward-box">
+              <h3 class="reward-title"><span>🎁</span> ของรางวัลสุด EXCLUSIVE</h3>
+              <div class="reward-grid">
+                <div class="reward-card">
+                  <div class="reward-art" aria-hidden="true">
+                    <div class="egg-tray"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                  </div>
+                  <div>
+                    <h3>10 กิโลเมตร</h3>
+                    <p>ไข่ 1 แผง</p>
+                  </div>
+                </div>
+                <div class="reward-card">
+                  <div class="reward-art" aria-hidden="true">
+                    <div class="egg-tray"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                    <div class="rice-bag">5</div>
+                  </div>
+                  <div>
+                    <h3>20 กิโลเมตร</h3>
+                    <p>ไข่ 1 แผง + ข้าวสาร 5 กก.</p>
+                  </div>
+                </div>
+              </div>
+              <p class="reward-note">* ผู้ที่สะสมระยะครบตามเป้าหมายที่เลือก จะได้รับรางวัลตามเงื่อนไขกิจกรรม</p>
+            </div>
             <a class="manual-link" href="employee-manual.html">📘 เปิดคู่มือการใช้งาน</a>
           </div>
         </aside>
@@ -831,6 +955,31 @@
               <li>ห้ามวิ่งที่ลู่วิ่ง ต้องมีรูปเส้นทางแบบแผนที่มากับระยะทางตอนส่งข้อมูลด้วย</li>
               <li>ผู้ที่มีระยะสะสมครบตามที่กำหนด จะได้รับรางวัลตามที่ระบุไว้</li>
             </ul>
+            <div class="reward-box">
+              <h3 class="reward-title"><span>🎁</span> ของรางวัลสุด EXCLUSIVE</h3>
+              <div class="reward-grid">
+                <div class="reward-card">
+                  <div class="reward-art" aria-hidden="true">
+                    <div class="egg-tray"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                  </div>
+                  <div>
+                    <h3>10 กิโลเมตร</h3>
+                    <p>ไข่ 1 แผง</p>
+                  </div>
+                </div>
+                <div class="reward-card">
+                  <div class="reward-art" aria-hidden="true">
+                    <div class="egg-tray"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                    <div class="rice-bag">5</div>
+                  </div>
+                  <div>
+                    <h3>20 กิโลเมตร</h3>
+                    <p>ไข่ 1 แผง + ข้าวสาร 5 กก.</p>
+                  </div>
+                </div>
+              </div>
+              <p class="reward-note">* ผู้ที่สะสมระยะครบตามเป้าหมายที่เลือก จะได้รับรางวัลตามเงื่อนไขกิจกรรม</p>
+            </div>
             <a class="manual-link" href="employee-manual.html">📘 เปิดคู่มือการใช้งาน</a>
           </div>
         </section>
