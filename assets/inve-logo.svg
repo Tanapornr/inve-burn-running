@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="INVE Aquaculture">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#001f55" flood-opacity=".18"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="64" r="58" fill="#005a74" filter="url(#shadow)"/>
+  <path d="M6 64C6 33.2 30 8 60.4 6.1c-7.2 14.5-10.9 34-10.9 57.9s3.7 43.4 10.9 57.9C30 120 6 94.8 6 64Z" fill="#a9be3d"/>
+  <text x="67" y="56" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="800" letter-spacing="3" fill="#ffffff">INVE</text>
+  <text x="67" y="76" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="9" font-weight="700" letter-spacing="2.2" fill="#d7e46e">AQUACULTURE</text>
+</svg>
