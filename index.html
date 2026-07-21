@@ -352,12 +352,24 @@
     .home-rank-table-wrap { overflow: auto; }
     .home-rank-name { min-width: 150px; }
     .home-rank-distance { text-align: right; white-space: nowrap; }
-    .admin-rank-heading { margin-top: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .admin-rank-panel { padding: 0; overflow: hidden; }
+    .admin-rank-heading { margin: 0; padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: linear-gradient(135deg, #f3f7ff, #fff); border-bottom: 1px solid var(--line); }
     .admin-rank-heading small { color: var(--muted); font-size: 13px; }
-    .admin-rank-user { display: flex; align-items: center; gap: 10px; min-width: 220px; }
-    .admin-rank-user .ranking-avatar { width: 48px; height: 48px; border-radius: 14px; }
-    .admin-rank-user b { display: block; line-height: 1.25; }
+    .admin-rank-table-wrap { border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+    .admin-rank-table { width: 100%; min-width: 0; table-layout: fixed; }
+    .admin-rank-table th, .admin-rank-table td { vertical-align: middle; }
+    .admin-rank-col-position { width: 72px; }
+    .admin-rank-col-user { width: 42%; }
+    .admin-rank-col-dept { width: 26%; }
+    .admin-rank-col-goal { width: 108px; }
+    .admin-rank-col-distance { width: 132px; }
+    .admin-rank-user { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .admin-rank-user .ranking-avatar { width: 52px; height: 52px; border-radius: 50%; flex: 0 0 auto; }
+    .admin-rank-user b { display: block; line-height: 1.25; word-break: break-word; }
     .admin-rank-code { color: var(--muted); font-size: 12px; font-weight: 800; margin-top: 2px; }
+    .admin-rank-department { color: #52627d; font-weight: 800; overflow-wrap: anywhere; }
+    .admin-rank-distance-cell { text-align: right; white-space: nowrap; }
+    .admin-goal-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 76px; padding: 7px 10px; border-radius: 999px; background: #fff3e7; color: var(--orange); font-weight: 900; }
     .home-rank-pager {
       display: flex;
       align-items: center;
@@ -695,12 +707,14 @@
     .admin-view { display: none; }
     .admin-view.active { display: block; }
     .admin-card-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 18px; }
+    .admin-dashboard-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr); gap: 18px; align-items: start; }
     .admin-panel { background: #fff; border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 20px; }
     .admin-table-wrap { overflow: auto; background: #fff; border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
     .status-pill { display: inline-flex; padding: 5px 12px; border-radius: 999px; font-weight: 800; font-size: 13px; }
     .status-on { background: #e8f9ee; color: #0b8f42; }
     .status-off { background: #fff3e7; color: #f15a24; }
     .goal-blocks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 18px; }
+    .admin-goal-blocks { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
     .ranking-layout, .contact-layout { display: grid; grid-template-columns: 1.4fr .8fr; gap: 18px; }
     .ranking-hero, .contact-hero { min-height: 190px; border-radius: 16px; margin-top: 18px; overflow: hidden; }
     .contact-card { display: grid; grid-template-columns: 64px 1fr; gap: 16px; align-items: center; padding: 20px; }
@@ -717,6 +731,7 @@
       .admin-layout { grid-template-columns: 1fr; }
       .admin-sidebar { position: static; }
       .admin-card-grid, .goal-blocks, .help-grid { grid-template-columns: 1fr 1fr; }
+      .admin-dashboard-layout { grid-template-columns: 1fr; }
       .ranking-layout, .contact-layout { grid-template-columns: 1fr; }
       .home-goal-rankings, .ranking-goal-grid { grid-template-columns: 1fr; }
       .ranking-controls { grid-template-columns: 1fr; }
@@ -750,6 +765,7 @@
       .footer-inner { flex-direction: column; align-items: flex-start; padding: 18px 0; }
       .admin-main { padding: 22px 16px 90px; }
       .admin-card-grid, .goal-blocks, .help-grid { grid-template-columns: 1fr; }
+      .admin-rank-table { min-width: 640px; }
       .admin-sidebar { padding: 20px 14px; gap: 8px; }
       .admin-sidebar .brand { margin-bottom: 10px; }
       .admin-sidebar .brand-logo { width: 46px; height: 44px; }
@@ -1263,11 +1279,20 @@
 
           <div class="admin-view" id="adminDashboard">
             <div class="admin-card-grid" id="adminStats"></div>
-            <div class="home-layout" style="grid-template-columns:1fr .72fr">
+            <div class="admin-dashboard-layout">
               <section class="admin-panel">
                 <h2 style="margin-top:0">Top 10 นักวิ่งระยะทางสูงสุด</h2>
-                <div class="admin-table-wrap" style="box-shadow:none;border-radius:12px">
-                  <table><thead><tr><th>อันดับ</th><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>แผนก</th><th>เป้าหมาย</th><th>ระยะรวม</th></tr></thead><tbody id="adminTopRows"></tbody></table>
+                <div class="admin-table-wrap admin-rank-table-wrap">
+                  <table class="admin-rank-table admin-top-table">
+                    <colgroup>
+                      <col class="admin-rank-col-position">
+                      <col class="admin-rank-col-user">
+                      <col class="admin-rank-col-dept">
+                      <col class="admin-rank-col-goal">
+                      <col class="admin-rank-col-distance">
+                    </colgroup>
+                    <thead><tr><th>อันดับ</th><th>ผู้สมัคร</th><th>แผนก</th><th>เป้าหมาย</th><th>ระยะรวม</th></tr></thead><tbody id="adminTopRows"></tbody>
+                  </table>
                 </div>
               </section>
               <section class="admin-panel">
@@ -1310,7 +1335,7 @@
 
           <div class="admin-view active" id="adminRankings">
             <h2 style="margin-top:0">อันดับแยกตามกิโลเมตร</h2>
-            <div class="goal-blocks" id="goalRankingBlocks"></div>
+            <div class="goal-blocks admin-goal-blocks" id="goalRankingBlocks"></div>
           </div>
         </div>
       </div>
@@ -2460,9 +2485,21 @@
         ["🏢", "แผนกทั้งหมด", `${intFmt.format(departments.length)} แผนก`, "แผนกในระบบพนักงาน", "icon-blue"]
       ].map(adminStatCard).join("");
 
-      document.getElementById("adminTopRows").innerHTML = registered.slice(0, 10).map((user, index) => `
-        <tr><td><span class="rank ${rankClass(index)}">${index + 1}</span></td><td>${user.code}</td><td><b>${user.name}</b></td><td>${user.department}</td><td>${user.goal} KM</td><td><b class="orange-text">${fmt.format(user.total)} กม.</b></td></tr>
-      `).join("") || `<tr><td colspan="6" style="text-align:center">ยังไม่มีผู้ลงทะเบียน</td></tr>`;
+      const adminTopUsers = [...registered].sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
+      document.getElementById("adminTopRows").innerHTML = adminTopUsers.slice(0, 10).map((user, index) => `
+        <tr>
+          <td><span class="rank ${rankClass(index)}">${index + 1}</span></td>
+          <td>
+            <div class="admin-rank-user">
+              <img class="ranking-avatar" src="${escapeHtml(getRankingAvatarSrc(user, index))}" alt="${escapeHtml(user.name)}" loading="lazy">
+              <div><b>${escapeHtml(user.name)}</b><div class="admin-rank-code">${escapeHtml(user.code)}</div></div>
+            </div>
+          </td>
+          <td><span class="admin-rank-department">${escapeHtml(user.department || "-")}</span></td>
+          <td><span class="admin-goal-pill">${escapeHtml(user.goal || "-")} KM</span></td>
+          <td class="admin-rank-distance-cell"><b class="orange-text">${fmt.format(user.total || 0)} กม.</b></td>
+        </tr>
+      `).join("") || `<tr><td colspan="5" style="text-align:center">ยังไม่มีผู้ลงทะเบียน</td></tr>`;
 
       const percent = employees.length ? Math.round((registered.length / employees.length) * 100) : 0;
       document.getElementById("adminRegisterSummary").innerHTML = `
@@ -2560,10 +2597,17 @@
           ? `อันดับ ${startIndex + 1}-${endRank} จาก ${goalRows.length}`
           : "ยังไม่มีข้อมูล";
         return `
-          <section class="admin-panel">
+          <section class="admin-panel admin-rank-panel">
             <h3 class="admin-rank-heading"><span>🏆 ${goal} KM</span><small>${rangeLabel}</small></h3>
-            <div class="admin-table-wrap" style="box-shadow:none;border-radius:12px">
-              <table><thead><tr><th>อันดับ</th><th>ผู้สมัคร</th><th>แผนก</th><th>ระยะสะสม</th></tr></thead><tbody>
+            <div class="admin-table-wrap admin-rank-table-wrap">
+              <table class="admin-rank-table">
+                <colgroup>
+                  <col class="admin-rank-col-position">
+                  <col class="admin-rank-col-user">
+                  <col class="admin-rank-col-dept">
+                  <col class="admin-rank-col-distance">
+                </colgroup>
+                <thead><tr><th>อันดับ</th><th>ผู้สมัคร</th><th>แผนก</th><th>ระยะสะสม</th></tr></thead><tbody>
                 ${rows.map((user, index) => {
                   const rankNumber = startIndex + index + 1;
                   return `<tr>
@@ -2574,8 +2618,8 @@
                         <div><b>${escapeHtml(user.name)}</b><div class="admin-rank-code">${escapeHtml(user.code)}</div></div>
                       </div>
                     </td>
-                    <td>${escapeHtml(user.department || "-")}</td>
-                    <td><b class="orange-text">${fmt.format(user.total || 0)} กม.</b></td>
+                    <td><span class="admin-rank-department">${escapeHtml(user.department || "-")}</span></td>
+                    <td class="admin-rank-distance-cell"><b class="orange-text">${fmt.format(user.total || 0)} กม.</b></td>
                   </tr>`;
                 }).join("") || `<tr><td colspan="4" style="text-align:center">ยังไม่มีข้อมูล</td></tr>`}
               </tbody></table>
