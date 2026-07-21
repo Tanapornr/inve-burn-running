@@ -352,6 +352,12 @@
     .home-rank-table-wrap { overflow: auto; }
     .home-rank-name { min-width: 150px; }
     .home-rank-distance { text-align: right; white-space: nowrap; }
+    .admin-rank-heading { margin-top: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .admin-rank-heading small { color: var(--muted); font-size: 13px; }
+    .admin-rank-user { display: flex; align-items: center; gap: 10px; min-width: 220px; }
+    .admin-rank-user .ranking-avatar { width: 48px; height: 48px; border-radius: 14px; }
+    .admin-rank-user b { display: block; line-height: 1.25; }
+    .admin-rank-code { color: var(--muted); font-size: 12px; font-weight: 800; margin-top: 2px; }
     .home-rank-pager {
       display: flex;
       align-items: center;
@@ -1364,6 +1370,7 @@
     const CACHE_TTL = 6 * 60 * 60 * 1000;
     const GOAL_DISTANCES = [10, 20];
     const HOME_LEADERBOARD_PAGE_SIZE = 15;
+    const ADMIN_GOAL_RANKING_PAGE_SIZE = 10;
     const REGISTRATION_START = new Date("2026-07-20T00:00:00+07:00");
     const REGISTRATION_END = new Date("2026-07-25T23:59:59+07:00");
 
@@ -1408,6 +1415,7 @@
       isUploadingRun: false,
       isAdmin: false,
       homeLeaderboardPages: {},
+      adminGoalRankingPages: {},
       rankingFilter: { period: "today", department: "", query: "" }
     };
     let refreshInFlight = false;
@@ -2539,18 +2547,46 @@
 
     function renderGoalRankings() {
       document.getElementById("goalRankingBlocks").innerHTML = GOAL_DISTANCES.map(goal => {
-        const rows = appState.allRegisteredUsers
+        const goalRows = appState.allRegisteredUsers
           .filter(user => Number(user.goal) === goal)
-          .sort((a, b) => b.total - a.total)
-          .slice(0, 10);
+          .sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
+        const totalPages = Math.max(1, Math.ceil(goalRows.length / ADMIN_GOAL_RANKING_PAGE_SIZE));
+        const currentPage = Math.min(Math.max(Number(appState.adminGoalRankingPages[goal] || 1), 1), totalPages);
+        appState.adminGoalRankingPages[goal] = currentPage;
+        const startIndex = (currentPage - 1) * ADMIN_GOAL_RANKING_PAGE_SIZE;
+        const rows = goalRows.slice(startIndex, startIndex + ADMIN_GOAL_RANKING_PAGE_SIZE);
+        const endRank = Math.min(startIndex + ADMIN_GOAL_RANKING_PAGE_SIZE, goalRows.length);
+        const rangeLabel = goalRows.length
+          ? `อันดับ ${startIndex + 1}-${endRank} จาก ${goalRows.length}`
+          : "ยังไม่มีข้อมูล";
         return `
           <section class="admin-panel">
-            <h3 style="margin-top:0">🏆 ${goal} KM Top 10</h3>
+            <h3 class="admin-rank-heading"><span>🏆 ${goal} KM</span><small>${rangeLabel}</small></h3>
             <div class="admin-table-wrap" style="box-shadow:none;border-radius:12px">
-              <table><thead><tr><th>อันดับ</th><th>ชื่อ-นามสกุล</th><th>แผนก</th><th>ระยะสะสม</th></tr></thead><tbody>
-                ${rows.map((user, index) => `<tr><td><span class="rank ${rankClass(index)}">${index + 1}</span></td><td><b>${user.name}</b></td><td>${user.department}</td><td><b class="orange-text">${fmt.format(user.total)} กม.</b></td></tr>`).join("") || `<tr><td colspan="4" style="text-align:center">ยังไม่มีข้อมูล</td></tr>`}
+              <table><thead><tr><th>อันดับ</th><th>ผู้สมัคร</th><th>แผนก</th><th>ระยะสะสม</th></tr></thead><tbody>
+                ${rows.map((user, index) => {
+                  const rankNumber = startIndex + index + 1;
+                  return `<tr>
+                    <td><span class="rank ${rankClass(rankNumber - 1)}">${rankNumber}</span></td>
+                    <td>
+                      <div class="admin-rank-user">
+                        <img class="ranking-avatar" src="${escapeHtml(getRankingAvatarSrc(user, rankNumber - 1))}" alt="${escapeHtml(user.name)}" loading="lazy">
+                        <div><b>${escapeHtml(user.name)}</b><div class="admin-rank-code">${escapeHtml(user.code)}</div></div>
+                      </div>
+                    </td>
+                    <td>${escapeHtml(user.department || "-")}</td>
+                    <td><b class="orange-text">${fmt.format(user.total || 0)} กม.</b></td>
+                  </tr>`;
+                }).join("") || `<tr><td colspan="4" style="text-align:center">ยังไม่มีข้อมูล</td></tr>`}
               </tbody></table>
             </div>
+            ${goalRows.length > ADMIN_GOAL_RANKING_PAGE_SIZE ? `
+              <div class="home-rank-pager">
+                <button type="button" data-admin-goal-rank-page data-goal="${goal}" data-page="${currentPage - 1}" ${currentPage <= 1 ? "disabled" : ""}>← ก่อนหน้า</button>
+                <span>หน้า ${currentPage} / ${totalPages}</span>
+                <button type="button" data-admin-goal-rank-page data-goal="${goal}" data-page="${currentPage + 1}" ${currentPage >= totalPages ? "disabled" : ""}>ถัดไป →</button>
+              </div>
+            ` : ""}
           </section>
         `;
       }).join("");
@@ -2921,6 +2957,17 @@
         }
         return;
       }
+      const adminGoalRankPageButton = event.target.closest("[data-admin-goal-rank-page]");
+      if (adminGoalRankPageButton) {
+        event.preventDefault();
+        const goal = Number(adminGoalRankPageButton.dataset.goal);
+        const page = Number(adminGoalRankPageButton.dataset.page);
+        if (goal && page > 0) {
+          appState.adminGoalRankingPages[goal] = page;
+          renderGoalRankings();
+        }
+        return;
+      }
       const proofClose = event.target.closest("[data-proof-close]");
       if (proofClose) {
         event.preventDefault();
@@ -3206,7 +3253,7 @@
           adminDashboard: ["แดชบอร์ดผู้ดูแลระบบ", "ภาพรวมการจัดกิจกรรม INVE BURN RUNNING 2026"],
           adminEmployees: ["จัดการพนักงาน", "แสดงรายชื่อพนักงานและสถานะลงทะเบียน"],
           adminReports: ["รายงานสรุป", "สรุปตามแผนกและเป้าหมายกิโลเมตร"],
-          adminRankings: ["อันดับแยกตามกิโลเมตร", "Top 10 แยกตามเป้าหมาย 10 KM และ 20 KM"]
+          adminRankings: ["อันดับแยกตามกิโลเมตร", "แสดงรายชื่อทั้งหมด แบ่งหน้า 10 รายชื่อตามเป้าหมาย 10 KM และ 20 KM"]
         };
         const [title, subtitle] = titles[button.dataset.adminView] || titles.adminRankings;
         document.getElementById("adminTitle").textContent = title;
