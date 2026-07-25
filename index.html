@@ -975,9 +975,9 @@
             <div class="panel-head"><span>🏆 อันดับนักวิ่งแยกตามกิโลเมตร</span><span class="live">LIVE</span></div>
             <div class="ranking-controls">
               <div class="period-tabs" id="rankingPeriodTabs">
-                <button type="button" class="active" data-ranking-period="today">วันนี้</button>
+                <button type="button" data-ranking-period="today">วันนี้</button>
                 <button type="button" data-ranking-period="week">สัปดาห์นี้</button>
-                <button type="button" data-ranking-period="all">ทั้งหมด</button>
+                <button type="button" class="active" data-ranking-period="all">ทั้งหมด</button>
               </div>
               <select id="rankingDepartmentFilter" aria-label="เลือกแผนก">
                 <option value="">แผนกทั้งหมด</option>
@@ -1441,7 +1441,7 @@
       isAdmin: false,
       homeLeaderboardPages: {},
       adminGoalRankingPages: {},
-      rankingFilter: { period: "today", department: "", query: "" }
+      rankingFilter: { period: "all", department: "", query: "" }
     };
     let refreshInFlight = false;
     let refreshTimer = null;
@@ -2325,17 +2325,7 @@
 
     function rankingRowsForPeriod(period = "all") {
       const users = appState.allRegisteredUsers.map(user => ({ ...user, total: Number(user.total || 0) }));
-      if (period === "all") return users.sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
-      const periodTotals = appState.allRuns
-        .filter(run => isRunInPeriod(run, period))
-        .reduce((map, run) => {
-          const code = normalizeCode(run.code);
-          map[code] = (map[code] || 0) + Number(run.distance || 0);
-          return map;
-        }, {});
-      return users
-        .map(user => ({ ...user, total: Number(periodTotals[normalizeCode(user.code)] || 0) }))
-        .sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
+      return users.sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
     }
 
     function updateRankingDepartmentOptions() {
