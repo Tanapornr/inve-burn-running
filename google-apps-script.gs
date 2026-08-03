@@ -191,26 +191,43 @@ function addRun(body) {
   const distance = Number(body.distance);
   if (!distance || distance <= 0) throw new Error('กรุณากรอกระยะทางที่ถูกต้อง');
 
-  const runDate = body.date ? new Date(body.date) : new Date();
-  const runNumber = getRunsByCode_(code).length + 1;
-  const imageUrl = saveImage_(body.imageData, {
-    code: user.code,
-    name: user.name,
-    date: runDate,
-    runNumber
-  });
+  const runId = normalizeRunId_(body.clientRunId || body.runId || body.id || Utilities.getUuid());
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const existingRun = findRunById_(runId);
+    if (existingRun && codeMatches_(existingRun.code, code)) {
+      return {
+        ok: true,
+        employee: buildUserSummary_(code),
+        runs: getRunsByCode_(code),
+        duplicate: true
+      };
+    }
 
-  getSheet_(CONFIG.RUNS_SHEET).appendRow([
-    Utilities.getUuid(),
-    user.code,
-    user.name,
-    user.department,
-    distance,
-    runDate,
-    body.note || '',
-    imageUrl,
-    new Date()
-  ]);
+    const runDate = body.date ? new Date(body.date) : new Date();
+    const runNumber = getRunsByCode_(code).length + 1;
+    const imageUrl = saveImage_(body.imageData, {
+      code: user.code,
+      name: user.name,
+      date: runDate,
+      runNumber
+    });
+
+    getSheet_(CONFIG.RUNS_SHEET).appendRow([
+      runId,
+      user.code,
+      user.name,
+      user.department,
+      distance,
+      runDate,
+      body.note || '',
+      imageUrl,
+      new Date()
+    ]);
+  } finally {
+    lock.releaseLock();
+  }
 
   return {
     ok: true,
@@ -309,6 +326,12 @@ function getAllRuns_() {
     imageUrl: row.imageUrl || '',
     createdAt: row.createdAt || ''
   }));
+}
+
+function findRunById_(runId) {
+  const normalizedRunId = normalizeRunId_(runId);
+  if (!normalizedRunId) return null;
+  return sheetToObjects_(getSheet_(CONFIG.RUNS_SHEET)).find(row => normalizeRunId_(row.id) === normalizedRunId) || null;
 }
 
 function findEmployee_(code) {
@@ -440,6 +463,10 @@ function hashPassword_(password) {
 function normalizeCode_(code) {
   const value = String(code || '').trim().toUpperCase();
   return /^\d+$/.test(value) ? value.padStart(3, '0') : value;
+}
+
+function normalizeRunId_(runId) {
+  return String(runId || '').trim();
 }
 
 function codeMatches_(left, right) {

@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/apps-script.js": {
+      "maxDuration": 60
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",

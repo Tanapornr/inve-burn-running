@@ -1441,7 +1441,8 @@
       isAdmin: false,
       homeLeaderboardPages: {},
       adminGoalRankingPages: {},
-      rankingFilter: { period: "all", department: "", query: "" }
+      rankingFilter: { period: "all", department: "", query: "" },
+      pendingRunUpload: null
     };
     let refreshInFlight = false;
     let refreshTimer = null;
@@ -1544,7 +1545,7 @@
       return message;
     }
 
-    async function apiProxy(action, payload = {}) {
+    async function apiProxy(action, payload = {}, timeoutMs = 15000) {
       if (!CONFIG.apiProxyUrl) throw new Error("ยังไม่ได้ตั้งค่า API Proxy");
       let res;
       try {
@@ -1552,7 +1553,7 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action, ...payload })
-        }, 15000);
+        }, timeoutMs);
       } catch (err) {
         if (isNetworkError(err)) {
           throw new Error("เชื่อมต่อระบบไม่ได้ กรุณาตรวจสอบ Wi‑Fi หรือสลับเป็น 4G/5G แล้วลองใหม่");
@@ -1634,10 +1635,18 @@
       }
       if (action === "addRun") {
         try {
-          return await apiProxy(action, payload);
+          return await apiProxy(action, payload, 45000);
         } catch (err) {
           if (err.apiResponded) throw err;
-          const beforeCount = appState.runs.length;
+          const beforeCount = Number(payload.beforeCount ?? appState.runs.length);
+          const syncedBeforeRetry = await waitForRunSync(payload.code, beforeCount, payload.clientRunId, 10);
+          if (hasSyncedRun(syncedBeforeRetry?.runs || [], beforeCount, payload.clientRunId)) {
+            return {
+              ok: true,
+              employee: syncedBeforeRetry.employee,
+              runs: syncedBeforeRetry.runs || []
+            };
+          }
           const requestBody = JSON.stringify({ action, ...payload });
           await fetch(CONFIG.apiUrl, {
             method: "POST",
@@ -1645,9 +1654,9 @@
             headers: { "Content-Type": "text/plain;charset=utf-8" },
             body: requestBody
           });
-          const dashboard = await waitForRunSync(payload.code, beforeCount);
+          const dashboard = await waitForRunSync(payload.code, beforeCount, payload.clientRunId, 12);
           const syncedRuns = dashboard?.runs || [];
-          if (!dashboard?.employee || syncedRuns.length <= beforeCount) throw new Error("บันทึกผลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+          if (!dashboard?.employee || !hasSyncedRun(syncedRuns, beforeCount, payload.clientRunId)) throw new Error("บันทึกผลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
           return {
             ok: true,
             employee: dashboard.employee,
@@ -1729,13 +1738,18 @@
       return new Promise(resolve => window.setTimeout(resolve, ms));
     }
 
-    async function waitForRunSync(code, beforeCount) {
+    function hasSyncedRun(runs = [], beforeCount = 0, clientRunId = "") {
+      if (clientRunId && runs.some(run => String(run.id || "") === String(clientRunId))) return true;
+      return runs.length > beforeCount;
+    }
+
+    async function waitForRunSync(code, beforeCount, clientRunId = "", attempts = 6) {
       let latestDashboard = null;
-      for (let attempt = 0; attempt < 6; attempt += 1) {
-        await sleep(attempt === 0 ? 1200 : 900);
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
+        await sleep(attempt === 0 ? 1200 : 1200);
         try {
           latestDashboard = await apiJsonp("getDashboard", { code });
-          if ((latestDashboard.runs || []).length > beforeCount) return latestDashboard;
+          if (hasSyncedRun(latestDashboard.runs || [], beforeCount, clientRunId)) return latestDashboard;
         } catch (err) {
           console.warn("Run sync retry failed", err);
         }
@@ -1816,6 +1830,24 @@
     function normalizeCode(code) {
       const value = String(code || "").trim().toUpperCase();
       return /^\d+$/.test(value) ? value.padStart(3, "0") : value;
+    }
+
+    function createClientRunId(code) {
+      const normalizedCode = normalizeCode(code || "EMP");
+      const randomPart = Math.random().toString(36).slice(2, 10).toUpperCase();
+      return `RUN-${normalizedCode}-${Date.now()}-${randomPart}`;
+    }
+
+    function createRunFormFingerprint({ code, file, distance, date, note }) {
+      return [
+        normalizeCode(code),
+        file?.name || "",
+        file?.size || "",
+        file?.lastModified || "",
+        Number(distance || 0),
+        date || "",
+        String(note || "").trim()
+      ].join("|");
     }
 
     function codeMatches(left, right) {
@@ -3169,6 +3201,7 @@
 
     function resetRunUploadUi() {
       appState.isUploadingRun = false;
+      appState.pendingRunUpload = null;
       setButtonLoading(document.getElementById("runSubmitBtn"), false);
       document.getElementById("runPreview").style.display = "none";
       document.getElementById("runPreview").src = "";
@@ -3182,6 +3215,7 @@
         resetRunUploadUi();
         return toast("อัปโหลดได้ครั้งละ 1 รูปเท่านั้น");
       }
+      appState.pendingRunUpload = null;
       const file = event.target.files[0];
       if (!file) return;
       if (!["image/jpeg", "image/png"].includes(file.type)) {
@@ -3216,11 +3250,35 @@
       const distance = Number(document.getElementById("runDistance").value);
       if (!distance || distance <= 0) return toast("กรุณากรอกระยะทางที่ถูกต้อง");
       const uploadStatus = document.getElementById("runUploadStatus");
+      const runDate = document.getElementById("runDate").value;
+      const note = document.getElementById("runNote").value;
+      const fingerprint = createRunFormFingerprint({ code: appState.currentUser.code, file, distance, date: runDate, note });
+      const pending = appState.pendingRunUpload?.fingerprint === fingerprint ? appState.pendingRunUpload : null;
+      const clientRunId = pending?.id || createClientRunId(appState.currentUser.code);
+      const beforeCount = Number(pending?.beforeCount ?? appState.runs.length);
+      appState.pendingRunUpload = { id: clientRunId, beforeCount, fingerprint };
       appState.isUploadingRun = true;
       setButtonLoading(submitButton, true, "กำลังย่อรูป...");
       uploadStatus.style.display = "block";
       uploadStatus.textContent = "⏳ กำลังย่อรูปก่อนอัปโหลด...";
       try {
+        if (pending?.id) {
+          uploadStatus.textContent = "⏳ กำลังตรวจสอบรายการก่อนหน้า...";
+          const syncedPending = await waitForRunSync(appState.currentUser.code, beforeCount, clientRunId, 6);
+          if (hasSyncedRun(syncedPending?.runs || [], beforeCount, clientRunId)) {
+            appState.currentUser = normalizeEmployeeRecord(syncedPending.employee);
+            appState.runs = syncedPending.runs || appState.runs;
+            saveCurrentUserSession(appState.currentUser);
+            upsertRegisteredUser(appState.currentUser);
+            renderStats();
+            renderLeaderboard();
+            renderDashboard();
+            event.target.reset();
+            resetRunUploadUi();
+            toast("พบรายการที่บันทึกสำเร็จแล้ว ไม่บันทึกซ้ำ");
+            return;
+          }
+        }
         const imageData = file ? await fileToOptimizedBase64(file) : "";
         setButtonLoading(submitButton, true, "กำลังบันทึก...");
         uploadStatus.textContent = "⏳ กำลังอัปโหลดและบันทึกผล...";
@@ -3228,9 +3286,11 @@
         const { employee, runs } = await api("addRun", {
           code: appState.currentUser.code,
           distance,
-          date: document.getElementById("runDate").value,
-          note: document.getElementById("runNote").value,
-          imageData
+          date: runDate,
+          note,
+          imageData,
+          clientRunId,
+          beforeCount
         });
         appState.currentUser = normalizeEmployeeRecord(employee);
         appState.runs = runs;
@@ -3249,7 +3309,7 @@
         });
       } catch (err) {
         uploadStatus.style.display = "block";
-        uploadStatus.textContent = "❌ บันทึกไม่สำเร็จ รูปยังเลือกอยู่ กดบันทึกอีกครั้งได้";
+        uploadStatus.textContent = "❌ ยังยืนยันผลไม่ได้ ระบบจะตรวจรายการเดิมก่อนถ้ากดบันทึกอีกครั้ง";
         toast(getFriendlyErrorMessage(err));
       } finally {
         appState.isUploadingRun = false;

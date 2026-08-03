@@ -70,7 +70,7 @@ module.exports = async function handler(req, res) {
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload),
       redirect: "follow"
-    }, 25000);
+    }, 50000);
 
     const text = await upstream.text();
     let data;
