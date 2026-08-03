@@ -145,9 +145,10 @@ function login(body) {
   const password = String(body.password || '');
   const user = findUser_(code);
 
-  if (!user || user.passwordHash !== hashPassword_(password)) {
+  if (!user || !passwordMatches_(user.passwordHash, password)) {
     throw new Error('รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง');
   }
+  upgradePlainPasswordIfNeeded_(code, user.passwordHash, password);
 
   return {
     ok: true,
@@ -458,6 +459,30 @@ function sanitizeFileName_(fileName) {
 function hashPassword_(password) {
   const raw = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(password));
   return raw.map(byte => ((byte + 256) % 256).toString(16).padStart(2, '0')).join('');
+}
+
+function passwordMatches_(storedPassword, password) {
+  const storedText = String(storedPassword || '').trim();
+  const plainText = String(password || '');
+  if (!storedText || !plainText) return false;
+  return storedText.toLowerCase() === hashPassword_(plainText) || storedText === plainText;
+}
+
+function upgradePlainPasswordIfNeeded_(code, storedPassword, password) {
+  const storedText = String(storedPassword || '').trim();
+  const plainText = String(password || '');
+  if (!storedText || storedText !== plainText || /^[a-f0-9]{64}$/i.test(storedText)) return;
+
+  const sheet = getSheet_(CONFIG.USERS_SHEET);
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0].map(String);
+  const codeIndex = headers.indexOf('code');
+  const passwordIndex = headers.indexOf('passwordHash');
+  if (codeIndex < 0 || passwordIndex < 0) return;
+
+  const rowIndex = values.findIndex((row, index) => index > 0 && codeMatches_(row[codeIndex], code));
+  if (rowIndex < 1) return;
+  sheet.getRange(rowIndex + 1, passwordIndex + 1).setValue(hashPassword_(plainText));
 }
 
 function normalizeCode_(code) {

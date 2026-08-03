@@ -2165,7 +2165,8 @@
         throw new Error("ยังไม่ได้ลงทะเบียน");
       }
 
-      if (String(user.passwordHash || "").toLowerCase() !== passwordHash) {
+      const storedPassword = String(user.passwordHash || "").trim();
+      if (storedPassword.toLowerCase() !== passwordHash && storedPassword !== password) {
         throw new Error("รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง");
       }
 
