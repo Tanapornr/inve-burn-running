@@ -1,4 +1,4 @@
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz9jDJumhNPcdAFDoK5JzYg-S5M-SXK8SMtlHPKx0aIVWbay83Gdqm8ykIjK5bVTdin9g/exec";
+﻿const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyrcW5HN7J-AcmfFxB6Yc43RBMwQZ_FWaA8HWx1CUl9RKr832swVXQOdqh6raX7uvj2LA/exec";
 
 function friendlyMessage(message) {
   const text = String(message || "");
