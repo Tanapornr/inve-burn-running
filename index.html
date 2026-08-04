@@ -1177,11 +1177,11 @@
               <div class="record-layout">
                 <img class="upload-preview" id="runPreview" alt="ตัวอย่างรูป" src="" style="display:none">
                 <label class="upload-box" id="runUploadBox" for="runImage">
-                  <span>ลากไฟล์มาวางที่นี่<br>หรือ <b class="muted-link">คลิกเพื่อเลือกไฟล์</b><br><small>รองรับ JPG, JPEG, PNG ไม่เกิน 5MB</small></span>
+                  <span>ลากไฟล์มาวางที่นี่<br>หรือ <b class="muted-link">คลิกเพื่อเลือกไฟล์</b><br><small>รองรับ JPG, JPEG, PNG, WEBP, HEIC ไม่เกิน 5MB</small></span>
                 </label>
                 <div class="upload-selected" id="runUploadStatus" style="display:none">✅ อัปโหลดรูปแล้ว 1 รูป</div>
               </div>
-              <input type="file" id="runImage" accept="image/png,image/jpeg" hidden>
+              <input type="file" id="runImage" accept="image/png,image/jpeg,image/webp,image/heic,image/heif" hidden>
               <div class="field-grid" style="margin-top:16px">
                 <div>
                   <label for="runDistance">ระยะทางที่วิ่งได้ (กม.) <span class="req">*</span></label>
@@ -1378,7 +1378,7 @@
       <p class="proof-modal-note" id="proofModalNote">กดพื้นที่ด้านนอกหรือปุ่ม × เพื่อปิดรูป</p>
     </div>
   </div>
-  <input type="file" id="profilePhotoInput" accept="image/png,image/jpeg" hidden>
+  <input type="file" id="profilePhotoInput" accept="image/png,image/jpeg,image/webp" hidden>
 
   <script>
     const CONFIG = {
@@ -1438,6 +1438,8 @@
       allRuns: CONFIG.demoMode ? [...demoRuns] : [],
       selectedEmployee: null,
       isUploadingRun: false,
+      uploadStartedAt: 0,
+      runUploadToken: "",
       isAdmin: false,
       homeLeaderboardPages: {},
       adminGoalRankingPages: {},
@@ -1449,6 +1451,17 @@
 
     const fmt = new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const intFmt = new Intl.NumberFormat("th-TH");
+    const RUN_IMAGE_MAX_SIZE = 5 * 1024 * 1024;
+    const RUN_IMAGE_MIME_BY_EXTENSION = {
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      webp: "image/webp",
+      heic: "image/heic",
+      heif: "image/heif"
+    };
+    const RUN_IMAGE_ACCEPTED_MIMES = new Set(Object.values(RUN_IMAGE_MIME_BY_EXTENSION));
+    const AVATAR_IMAGE_ACCEPTED_MIMES = new Set(["image/jpeg", "image/png", "image/webp"]);
     const PAGE_HASHES = {
       home: "home",
       ranking: "ranking",
@@ -1492,6 +1505,38 @@
           uploadStatus.textContent = "✅ อัปโหลดรูปแล้ว 1 รูป";
         }
       }
+    }
+
+    function getFileExtension(file) {
+      const match = String(file?.name || "").toLowerCase().match(/\.([a-z0-9]+)$/);
+      return match ? match[1] : "";
+    }
+
+    function getImageMimeFromFile(file) {
+      const type = String(file?.type || "").toLowerCase();
+      if (RUN_IMAGE_ACCEPTED_MIMES.has(type)) return type;
+      return RUN_IMAGE_MIME_BY_EXTENSION[getFileExtension(file)] || "";
+    }
+
+    function isSupportedRunImage(file) {
+      return RUN_IMAGE_ACCEPTED_MIMES.has(getImageMimeFromFile(file));
+    }
+
+    function isSupportedAvatarImage(file) {
+      const type = String(file?.type || "").toLowerCase();
+      return AVATAR_IMAGE_ACCEPTED_MIMES.has(type) || ["jpg", "jpeg", "png", "webp"].includes(getFileExtension(file));
+    }
+
+    function normalizeDataUrlMime(dataUrl, mimeType) {
+      return String(dataUrl).replace(/^data:[^;]*;base64,/, `data:${mimeType};base64,`);
+    }
+
+    function withTimeout(promise, timeoutMs, message) {
+      let timeoutId = 0;
+      const timeout = new Promise((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+      });
+      return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
     }
 
     function readCache(key, maxAge = CACHE_TTL) {
@@ -1541,6 +1586,9 @@
       const message = err?.message || "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง";
       if (isNetworkError(err) || /โหลดระบบข้อมูล|เชื่อมต่อระบบข้อมูล|โหลดรายชื่อ|ตรวจสอบสิทธิ์|เชื่อมต่อระบบไม่ได้/i.test(message)) {
         return "เชื่อมต่อระบบไม่ได้ กรุณาตรวจสอบ Wi‑Fi หรือสลับเป็น 4G/5G แล้วลองใหม่";
+      }
+      if (/รูปภาพไม่ถูกต้อง|invalid image|image/i.test(message)) {
+        return "รูปหลักฐานอ่านไม่สำเร็จ กรุณาเลือกรูปใหม่ หรือแคปหน้าจอเป็น JPG/PNG แล้วลองอีกครั้ง";
       }
       return message;
     }
@@ -2944,10 +2992,38 @@
       });
     }
 
+    async function fileToOriginalImageBase64(file) {
+      const mimeType = getImageMimeFromFile(file);
+      if (!mimeType) throw new Error("ไฟล์รูปไม่ถูกต้อง กรุณาเลือกรูป JPG, PNG, WEBP หรือ HEIC/HEIF");
+      return normalizeDataUrlMime(await fileToBase64(file), mimeType);
+    }
+
     function fileToOptimizedBase64(file) {
       return new Promise((resolve, reject) => {
+        const mimeType = getImageMimeFromFile(file);
+        if (!mimeType) {
+          reject(new Error("ไฟล์รูปไม่ถูกต้อง กรุณาเลือกรูป JPG, PNG, WEBP หรือ HEIC/HEIF"));
+          return;
+        }
         const objectUrl = URL.createObjectURL(file);
         const image = new Image();
+        let finished = false;
+        const decodeTimeoutId = window.setTimeout(() => {
+          fileToOriginalImageBase64(file).then(
+            dataUrl => finish(resolve, dataUrl),
+            error => finish(reject, error)
+          );
+        }, 18000);
+        const cleanup = () => {
+          window.clearTimeout(decodeTimeoutId);
+          URL.revokeObjectURL(objectUrl);
+        };
+        const finish = (callback, value) => {
+          if (finished) return;
+          finished = true;
+          cleanup();
+          callback(value);
+        };
         image.onload = () => {
           try {
             const maxSize = 1400;
@@ -2957,17 +3033,21 @@
             canvas.height = Math.max(1, Math.round(image.height * scale));
             const context = canvas.getContext("2d");
             context.drawImage(image, 0, 0, canvas.width, canvas.height);
-            URL.revokeObjectURL(objectUrl);
-            resolve(canvas.toDataURL("image/jpeg", 0.78));
+            finish(resolve, canvas.toDataURL("image/jpeg", 0.78));
           } catch (err) {
-            URL.revokeObjectURL(objectUrl);
-            fileToBase64(file).then(resolve, reject);
+            fileToOriginalImageBase64(file).then(
+              dataUrl => finish(resolve, dataUrl),
+              error => finish(reject, error)
+            );
           }
         };
         image.onerror = () => {
-          URL.revokeObjectURL(objectUrl);
-          fileToBase64(file).then(resolve, reject);
+          fileToOriginalImageBase64(file).then(
+            dataUrl => finish(resolve, dataUrl),
+            error => finish(reject, error)
+          );
         };
+        image.decoding = "async";
         image.src = objectUrl;
       });
     }
@@ -2976,6 +3056,20 @@
       return new Promise((resolve, reject) => {
         const objectUrl = URL.createObjectURL(file);
         const image = new Image();
+        let finished = false;
+        const timeoutId = window.setTimeout(() => {
+          finish(reject, new Error("รูปโปรไฟล์อ่านไม่สำเร็จ กรุณาเลือกรูป JPG, PNG หรือ WEBP ใหม่"));
+        }, 12000);
+        const cleanup = () => {
+          window.clearTimeout(timeoutId);
+          URL.revokeObjectURL(objectUrl);
+        };
+        const finish = (callback, value) => {
+          if (finished) return;
+          finished = true;
+          cleanup();
+          callback(value);
+        };
         image.onload = () => {
           try {
             const canvas = document.createElement("canvas");
@@ -2986,22 +3080,21 @@
             const sourceX = Math.max(0, (image.width - side) / 2);
             const sourceY = Math.max(0, (image.height - side) / 2);
             context.drawImage(image, sourceX, sourceY, side, side, 0, 0, size, size);
-            URL.revokeObjectURL(objectUrl);
             const imageData = canvas.toDataURL("image/jpeg", quality);
             if (imageData.length > 45000 && size > 96) {
+              cleanup();
               fileToAvatarBase64(file, 96, 0.68).then(resolve, reject);
               return;
             }
-            resolve(imageData);
+            finish(resolve, imageData);
           } catch (err) {
-            URL.revokeObjectURL(objectUrl);
-            fileToBase64(file).then(resolve, reject);
+            finish(reject, new Error("รูปโปรไฟล์อ่านไม่สำเร็จ กรุณาเลือกรูปใหม่"));
           }
         };
         image.onerror = () => {
-          URL.revokeObjectURL(objectUrl);
-          fileToBase64(file).then(resolve, reject);
+          finish(reject, new Error("รูปโปรไฟล์อ่านไม่สำเร็จ กรุณาเลือกรูปใหม่"));
         };
+        image.decoding = "async";
         image.src = objectUrl;
       });
     }
@@ -3081,16 +3174,21 @@
         event.target.value = "";
         return toast("\u0e01\u0e23\u0e38\u0e13\u0e32\u0e40\u0e02\u0e49\u0e32\u0e2a\u0e39\u0e48\u0e23\u0e30\u0e1a\u0e1a\u0e01\u0e48\u0e2d\u0e19\u0e40\u0e1b\u0e25\u0e35\u0e48\u0e22\u0e19\u0e23\u0e39\u0e1b\u0e42\u0e1b\u0e23\u0e44\u0e1f\u0e25\u0e4c");
       }
-      if (!["image/jpeg", "image/png"].includes(file.type)) {
+      if (!isSupportedAvatarImage(file)) {
         event.target.value = "";
-        return toast("\u0e23\u0e2d\u0e07\u0e23\u0e31\u0e1a\u0e40\u0e09\u0e1e\u0e32\u0e30\u0e44\u0e1f\u0e25\u0e4c JPG, JPEG \u0e2b\u0e23\u0e37\u0e2d PNG");
+        return toast("รองรับเฉพาะไฟล์ JPG, JPEG, PNG หรือ WEBP");
       }
-      if (file.size > 5 * 1024 * 1024) {
+      if (file.size > RUN_IMAGE_MAX_SIZE) {
         event.target.value = "";
         return toast("\u0e02\u0e19\u0e32\u0e14\u0e44\u0e1f\u0e25\u0e4c\u0e23\u0e39\u0e1b\u0e42\u0e1b\u0e23\u0e44\u0e1f\u0e25\u0e4c\u0e15\u0e49\u0e2d\u0e07\u0e44\u0e21\u0e48\u0e40\u0e01\u0e34\u0e19 5MB");
       }
       try {
-        const imageData = await fileToAvatarBase64(file);
+        toast("กำลังเปลี่ยนรูปโปรไฟล์...");
+        const imageData = await withTimeout(
+          fileToAvatarBase64(file),
+          15000,
+          "รูปโปรไฟล์อ่านไม่สำเร็จ กรุณาเลือกรูป JPG, PNG หรือ WEBP ใหม่"
+        );
         if (imageData.length > 45000) throw new Error("รูปโปรไฟล์ใหญ่เกินไป กรุณาเลือกรูปใหม่");
 
         saveProfilePhoto(appState.currentUser.code, imageData);
@@ -3202,16 +3300,25 @@
 
     function resetRunUploadUi() {
       appState.isUploadingRun = false;
+      appState.uploadStartedAt = 0;
+      appState.runUploadToken = "";
       appState.pendingRunUpload = null;
       setButtonLoading(document.getElementById("runSubmitBtn"), false);
-      document.getElementById("runPreview").style.display = "none";
-      document.getElementById("runPreview").src = "";
+      const preview = document.getElementById("runPreview");
+      if (preview.dataset.objectUrl) URL.revokeObjectURL(preview.dataset.objectUrl);
+      preview.dataset.objectUrl = "";
+      preview.style.display = "none";
+      preview.src = "";
       document.getElementById("runUploadBox").style.display = "grid";
       document.getElementById("runUploadStatus").style.display = "none";
       document.getElementById("runImage").value = "";
     }
 
     document.getElementById("runImage").addEventListener("change", event => {
+      if (appState.isUploadingRun) {
+        event.target.value = "";
+        return toast("ระบบกำลังบันทึกผลอยู่ กรุณารอให้เสร็จก่อนเลือกรูปใหม่");
+      }
       if (event.target.files.length > 1) {
         resetRunUploadUi();
         return toast("อัปโหลดได้ครั้งละ 1 รูปเท่านั้น");
@@ -3219,25 +3326,49 @@
       appState.pendingRunUpload = null;
       const file = event.target.files[0];
       if (!file) return;
-      if (!["image/jpeg", "image/png"].includes(file.type)) {
+      if (!isSupportedRunImage(file)) {
         resetRunUploadUi();
-        return toast("รองรับเฉพาะไฟล์ JPG, JPEG หรือ PNG");
+        return toast("รองรับไฟล์ JPG, JPEG, PNG, WEBP หรือ HEIC/HEIF เท่านั้น");
       }
-      if (file.size > 5 * 1024 * 1024) {
+      if (file.size > RUN_IMAGE_MAX_SIZE) {
         resetRunUploadUi();
         return toast("ขนาดไฟล์ต้องไม่เกิน 5MB");
       }
       const preview = document.getElementById("runPreview");
-      preview.src = URL.createObjectURL(file);
+      if (preview.dataset.objectUrl) URL.revokeObjectURL(preview.dataset.objectUrl);
+      const previewUrl = URL.createObjectURL(file);
+      preview.dataset.objectUrl = previewUrl;
+      preview.src = previewUrl;
+      preview.onerror = () => {
+        preview.style.display = "none";
+        document.getElementById("runUploadStatus").textContent = "✅ เลือกรูปแล้ว 1 รูป พร้อมบันทึก";
+      };
       preview.style.display = "block";
       document.getElementById("runUploadBox").style.display = "none";
       document.getElementById("runUploadStatus").style.display = "block";
+      document.getElementById("runUploadStatus").textContent = "✅ เลือกรูปแล้ว 1 รูป พร้อมบันทึก";
+      restoreRunFormControls();
     });
 
     document.getElementById("runForm").addEventListener("submit", async event => {
       event.preventDefault();
       const submitButton = document.getElementById("runSubmitBtn");
-      if (appState.isUploadingRun) return toast("ระบบกำลังบันทึกผล กรุณารอสักครู่");
+      if (appState.isUploadingRun) {
+        const elapsed = Date.now() - Number(appState.uploadStartedAt || 0);
+        if (elapsed > 90000) {
+          appState.isUploadingRun = false;
+          appState.uploadStartedAt = 0;
+          appState.runUploadToken = "";
+          setButtonLoading(submitButton, false);
+          const staleStatus = document.getElementById("runUploadStatus");
+          if (staleStatus) {
+            staleStatus.style.display = "block";
+            staleStatus.textContent = "⚠️ ระบบคืนปุ่มแล้ว กรุณากดบันทึกอีกครั้ง ระบบจะไม่บันทึกซ้ำ";
+          }
+          return toast("ระบบคืนสถานะปุ่มแล้ว กรุณากดบันทึกอีกครั้ง");
+        }
+        return toast("ระบบกำลังบันทึกผล กรุณารอสักครู่");
+      }
       if (!appState.currentUser?.code) {
         appState.currentUser = null;
         clearCurrentUserSession();
@@ -3248,10 +3379,13 @@
       if (imageInput.files.length > 1) return toast("อัปโหลดได้ครั้งละ 1 รูปเท่านั้น");
       const file = imageInput.files[0];
       if (!file) return toast("กรุณาอัปโหลดรูปหลักฐานการวิ่ง 1 รูป");
+      if (!isSupportedRunImage(file)) return toast("รองรับไฟล์ JPG, JPEG, PNG, WEBP หรือ HEIC/HEIF เท่านั้น");
+      if (file.size > RUN_IMAGE_MAX_SIZE) return toast("ขนาดไฟล์ต้องไม่เกิน 5MB");
       const distance = Number(document.getElementById("runDistance").value);
       if (!distance || distance <= 0) return toast("กรุณากรอกระยะทางที่ถูกต้อง");
       const uploadStatus = document.getElementById("runUploadStatus");
       const runDate = document.getElementById("runDate").value;
+      if (!runDate) return toast("กรุณาเลือกวันที่วิ่ง");
       const note = document.getElementById("runNote").value;
       const fingerprint = createRunFormFingerprint({ code: appState.currentUser.code, file, distance, date: runDate, note });
       const pending = appState.pendingRunUpload?.fingerprint === fingerprint ? appState.pendingRunUpload : null;
@@ -3259,9 +3393,22 @@
       const beforeCount = Number(pending?.beforeCount ?? appState.runs.length);
       appState.pendingRunUpload = { id: clientRunId, beforeCount, fingerprint };
       appState.isUploadingRun = true;
+      appState.uploadStartedAt = Date.now();
+      const uploadToken = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      appState.runUploadToken = uploadToken;
       setButtonLoading(submitButton, true, "กำลังย่อรูป...");
       uploadStatus.style.display = "block";
       uploadStatus.textContent = "⏳ กำลังย่อรูปก่อนอัปโหลด...";
+      const uploadWatchdogId = window.setTimeout(() => {
+        if (appState.runUploadToken !== uploadToken || !appState.isUploadingRun) return;
+        appState.isUploadingRun = false;
+        appState.uploadStartedAt = 0;
+        appState.runUploadToken = "";
+        setButtonLoading(submitButton, false);
+        uploadStatus.style.display = "block";
+        uploadStatus.textContent = "⚠️ ใช้เวลานานผิดปกติ กดบันทึกอีกครั้งได้ ระบบจะตรวจไม่ให้บันทึกซ้ำ";
+        toast("เน็ตหรือรูปใช้เวลานาน กดบันทึกอีกครั้งได้ ระบบจะไม่บันทึกซ้ำ");
+      }, 120000);
       try {
         if (pending?.id) {
           uploadStatus.textContent = "⏳ กำลังตรวจสอบรายการก่อนหน้า...";
@@ -3280,7 +3427,11 @@
             return;
           }
         }
-        const imageData = file ? await fileToOptimizedBase64(file) : "";
+        const imageData = file ? await withTimeout(
+          fileToOptimizedBase64(file),
+          30000,
+          "ย่อรูปไม่สำเร็จภายในเวลาที่กำหนด กรุณาเลือกรูปใหม่ หรือแคปหน้าจอเป็น JPG/PNG แล้วลองอีกครั้ง"
+        ) : "";
         setButtonLoading(submitButton, true, "กำลังบันทึก...");
         uploadStatus.textContent = "⏳ กำลังอัปโหลดและบันทึกผล...";
         toast("กำลังอัปโหลดรูปและบันทึกผล กรุณารอสักครู่");
@@ -3313,8 +3464,13 @@
         uploadStatus.textContent = "❌ ยังยืนยันผลไม่ได้ ระบบจะตรวจรายการเดิมก่อนถ้ากดบันทึกอีกครั้ง";
         toast(getFriendlyErrorMessage(err));
       } finally {
-        appState.isUploadingRun = false;
-        setButtonLoading(submitButton, false);
+        window.clearTimeout(uploadWatchdogId);
+        if (appState.runUploadToken === uploadToken) {
+          appState.isUploadingRun = false;
+          appState.uploadStartedAt = 0;
+          appState.runUploadToken = "";
+          setButtonLoading(submitButton, false);
+        }
       }
     });
 

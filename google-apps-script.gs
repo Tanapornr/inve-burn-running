@@ -350,10 +350,17 @@ function saveImage_(imageData, fileInfo) {
   if (!imageData) return '';
   if (!CONFIG.DRIVE_FOLDER_ID) return imageData;
 
-  const match = String(imageData).match(/^data:(image\/(?:png|jpeg));base64,(.+)$/);
+  const match = String(imageData).match(/^data:(image\/(?:png|jpeg|webp|heic|heif));base64,(.+)$/);
   if (!match) throw new Error('รูปภาพไม่ถูกต้อง');
 
-  const extension = match[1] === 'image/png' ? 'png' : 'jpg';
+  const extensionByMime = {
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/webp': 'webp',
+    'image/heic': 'heic',
+    'image/heif': 'heif'
+  };
+  const extension = extensionByMime[match[1]] || 'jpg';
   const dateText = Utilities.formatDate(new Date(fileInfo.date), Session.getScriptTimeZone(), 'yyyy-MM-dd');
   const safeName = sanitizeFileName_(`ครั้งที่ ${fileInfo.runNumber} ${fileInfo.code} ${fileInfo.name} ${dateText}.${extension}`);
   try {
