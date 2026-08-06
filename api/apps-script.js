@@ -50,6 +50,8 @@ function readBody(req) {
 }
 
 module.exports = async function handler(req, res) {
+  const requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const startedAt = Date.now();
   if (req.method === "OPTIONS") {
     sendJson(res, 204, {});
     return;
@@ -64,6 +66,13 @@ module.exports = async function handler(req, res) {
     const rawBody = await readBody(req);
     const payload = rawBody ? JSON.parse(rawBody) : {};
     if (!payload.action) throw new Error("ไม่พบ action ที่ร้องขอ");
+    console.log(JSON.stringify({
+      event: "apps-script-request",
+      requestId,
+      action: payload.action,
+      clientRunId: payload.clientRunId || "",
+      bodyBytes: Buffer.byteLength(rawBody, "utf8")
+    }));
 
     const upstream = await fetchWithTimeout(SCRIPT_URL, {
       method: "POST",
@@ -83,8 +92,23 @@ module.exports = async function handler(req, res) {
       data.message = friendlyMessage(data.message);
     }
 
+    console.log(JSON.stringify({
+      event: "apps-script-response",
+      requestId,
+      action: payload.action,
+      ok: Boolean(data && data.ok),
+      upstreamStatus: upstream.status,
+      durationMs: Date.now() - startedAt
+    }));
+
     sendJson(res, upstream.ok ? 200 : upstream.status, data);
   } catch (err) {
+    console.error(JSON.stringify({
+      event: "apps-script-error",
+      requestId,
+      message: String(err && err.message ? err.message : err),
+      durationMs: Date.now() - startedAt
+    }));
     sendJson(res, 500, { ok: false, message: friendlyMessage(err.message) || "เชื่อมต่อระบบข้อมูลไม่สำเร็จ" });
   }
 };

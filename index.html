@@ -1389,6 +1389,7 @@
       employeesSheetName: "Employees"
     };
     const CURRENT_USER_KEY = "inveBurnCurrentUser";
+    const SESSION_TOKEN_KEY = "inveBurnSessionToken";
     const PROFILE_PHOTOS_KEY = "inveBurnProfilePhotos";
     const DASHBOARD_CACHE_KEY = "inveBurnDashboardCache";
     const EMPLOYEES_CACHE_KEY = "inveBurnEmployeesCache";
@@ -1440,6 +1441,7 @@
       isUploadingRun: false,
       uploadStartedAt: 0,
       runUploadToken: "",
+      sessionToken: "",
       isAdmin: false,
       homeLeaderboardPages: {},
       adminGoalRankingPages: {},
@@ -1644,34 +1646,16 @@
         return { ok: true, employee };
       }
       if (action === "login") {
-        try {
-          return await apiProxy(action, payload);
-        } catch (err) {
-          if (err.apiResponded) throw err;
-        }
-        try {
-          return await apiJsonp(action, payload);
-        } catch (err) {
-          return loginFromSheet(payload);
-        }
+        return apiProxy(action, payload, 30000);
       }
       if (action === "updateProfilePhoto") {
-        return apiProxy(action, payload);
+        return apiProxy(action, { ...payload, sessionToken: appState.sessionToken }, 30000);
       }
       if (!CONFIG.apiUrl) {
         throw new Error("ยังไม่ได้เชื่อมระบบบันทึกข้อมูล");
       }
       if (action === "register") {
-        try {
-          return await apiProxy(action, payload);
-        } catch (err) {
-          if (err.apiResponded) throw err;
-        }
-        try {
-          return await apiJsonp(action, payload);
-        } catch (err) {
-          return registerViaPostAndSync(payload, err);
-        }
+        return apiProxy(action, payload, 30000);
       }
       if (["getDashboard"].includes(action)) {
         try {
@@ -1682,29 +1666,30 @@
         return apiJsonp(action, payload);
       }
       if (action === "addRun") {
+        const authenticatedPayload = { ...payload, sessionToken: appState.sessionToken };
         try {
-          return await apiProxy(action, payload, 45000);
+          return await apiProxy(action, authenticatedPayload, 55000);
         } catch (err) {
           if (err.apiResponded) throw err;
-          const beforeCount = Number(payload.beforeCount ?? appState.runs.length);
-          const syncedBeforeRetry = await waitForRunSync(payload.code, beforeCount, payload.clientRunId, 10);
-          if (hasSyncedRun(syncedBeforeRetry?.runs || [], beforeCount, payload.clientRunId)) {
+          const beforeCount = Number(authenticatedPayload.beforeCount ?? appState.runs.length);
+          const syncedBeforeRetry = await waitForRunSync(authenticatedPayload.code, beforeCount, authenticatedPayload.clientRunId, 10);
+          if (hasSyncedRun(syncedBeforeRetry?.runs || [], beforeCount, authenticatedPayload.clientRunId)) {
             return {
               ok: true,
               employee: syncedBeforeRetry.employee,
               runs: syncedBeforeRetry.runs || []
             };
           }
-          const requestBody = JSON.stringify({ action, ...payload });
+          const requestBody = JSON.stringify({ action, ...authenticatedPayload });
           await fetch(CONFIG.apiUrl, {
             method: "POST",
             mode: "no-cors",
             headers: { "Content-Type": "text/plain;charset=utf-8" },
             body: requestBody
           });
-          const dashboard = await waitForRunSync(payload.code, beforeCount, payload.clientRunId, 12);
+          const dashboard = await waitForRunSync(authenticatedPayload.code, beforeCount, authenticatedPayload.clientRunId, 12);
           const syncedRuns = dashboard?.runs || [];
-          if (!dashboard?.employee || !hasSyncedRun(syncedRuns, beforeCount, payload.clientRunId)) throw new Error("บันทึกผลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+          if (!dashboard?.employee || !hasSyncedRun(syncedRuns, beforeCount, authenticatedPayload.clientRunId)) throw new Error("บันทึกผลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
           return {
             ok: true,
             employee: dashboard.employee,
@@ -1880,21 +1865,30 @@
       return /^\d+$/.test(value) ? value.padStart(3, "0") : value;
     }
 
-    function createClientRunId(code) {
-      const normalizedCode = normalizeCode(code || "EMP");
-      const randomPart = Math.random().toString(36).slice(2, 10).toUpperCase();
-      return `RUN-${normalizedCode}-${Date.now()}-${randomPart}`;
+    function hashRunFingerprint(value = "") {
+      let first = 2166136261;
+      let second = 2246822519;
+      for (let index = 0; index < value.length; index += 1) {
+        const code = value.charCodeAt(index);
+        first = Math.imul(first ^ code, 16777619);
+        second = Math.imul(second ^ code, 3266489917);
+      }
+      return `${(first >>> 0).toString(36)}${(second >>> 0).toString(36)}`.toUpperCase();
     }
 
-    function createRunFormFingerprint({ code, file, distance, date, note }) {
+    function createClientRunId(code, fingerprint) {
+      const normalizedCode = normalizeCode(code || "EMP");
+      return `RUN-${normalizedCode}-${hashRunFingerprint(fingerprint)}`;
+    }
+
+    function createRunFormFingerprint({ code, file, distance, date }) {
       return [
         normalizeCode(code),
         file?.name || "",
         file?.size || "",
         file?.lastModified || "",
         Number(distance || 0),
-        date || "",
-        String(note || "").trim()
+        date || ""
       ].join("|");
     }
 
@@ -1908,10 +1902,14 @@
       return false;
     }
 
-    function saveCurrentUserSession(user) {
+    function saveCurrentUserSession(user, sessionToken = appState.sessionToken) {
       if (!user?.code) return;
       const normalizedUser = normalizeEmployeeRecord(user);
       localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(normalizedUser));
+      if (sessionToken) {
+        appState.sessionToken = String(sessionToken);
+        localStorage.setItem(SESSION_TOKEN_KEY, appState.sessionToken);
+      }
       return normalizedUser;
     }
 
@@ -1920,6 +1918,7 @@
         const user = JSON.parse(localStorage.getItem(CURRENT_USER_KEY) || "null");
         if (user?.code) {
           appState.currentUser = normalizeEmployeeRecord(user);
+          appState.sessionToken = localStorage.getItem(SESSION_TOKEN_KEY) || "";
         }
       } catch (err) {
         localStorage.removeItem(CURRENT_USER_KEY);
@@ -1928,6 +1927,8 @@
 
     function clearCurrentUserSession() {
       localStorage.removeItem(CURRENT_USER_KEY);
+      localStorage.removeItem(SESSION_TOKEN_KEY);
+      appState.sessionToken = "";
     }
 
     function readProfilePhotos() {
@@ -2761,12 +2762,12 @@
       if (page === "register" && !isRegistrationOpen()) {
         window.setTimeout(showRegistrationWindowModal, 120);
       }
-      refreshLiveData();
+      if (!options.skipRefresh) refreshLiveData();
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
     async function refreshLiveData() {
-      if (CONFIG.demoMode || refreshInFlight) return;
+      if (CONFIG.demoMode || refreshInFlight || appState.isUploadingRun || document.hidden) return;
       refreshInFlight = true;
       try {
         await loadRegisteredData();
@@ -2787,7 +2788,7 @@
 
     function startRealtimeUpdates() {
       if (CONFIG.demoMode || refreshTimer) return;
-      refreshTimer = window.setInterval(refreshLiveData, 7000);
+      refreshTimer = window.setInterval(refreshLiveData, 30000);
     }
 
     function updateAuthUi() {
@@ -3248,11 +3249,12 @@
           goal: document.querySelector("input[name='goal']:checked").value,
           password
         };
-        const { employee } = await api("register", payload);
+        const { employee, sessionToken } = await api("register", payload);
         if (!employee) throw new Error("ระบบข้อมูลยังไม่พร้อม กรุณาลองสมัครใหม่อีกครั้ง");
         appState.currentUser = normalizeEmployeeRecord(employee);
+        appState.sessionToken = sessionToken || "";
         appState.runs = [];
-        saveCurrentUserSession(appState.currentUser);
+        saveCurrentUserSession(appState.currentUser, appState.sessionToken);
         upsertRegisteredUser(appState.currentUser);
         updateAuthUi();
         renderStats();
@@ -3278,14 +3280,15 @@
       setButtonLoading(submitButton, true, "กำลังเข้าสู่ระบบ...");
       toast("กำลังเข้าสู่ระบบ กรุณารอสักครู่");
       try {
-        const { employee, runs } = await api("login", {
+        const { employee, runs, sessionToken } = await api("login", {
           code: document.getElementById("loginCode").value,
           password: document.getElementById("loginPassword").value
         });
         if (!employee) throw new Error("ระบบข้อมูลยังไม่พร้อม กรุณาลองเข้าสู่ระบบใหม่อีกครั้ง");
         appState.currentUser = normalizeEmployeeRecord(employee);
+        appState.sessionToken = sessionToken || "";
         appState.runs = runs || appState.runs;
-        saveCurrentUserSession(appState.currentUser);
+        saveCurrentUserSession(appState.currentUser, appState.sessionToken);
         upsertRegisteredUser(appState.currentUser);
         updateAuthUi();
         renderDashboard();
@@ -3383,13 +3386,15 @@
       if (file.size > RUN_IMAGE_MAX_SIZE) return toast("ขนาดไฟล์ต้องไม่เกิน 5MB");
       const distance = Number(document.getElementById("runDistance").value);
       if (!distance || distance <= 0) return toast("กรุณากรอกระยะทางที่ถูกต้อง");
+      if (distance > 100) return toast("ระยะทางต่อครั้งต้องไม่เกิน 100 กิโลเมตร กรุณาตรวจสอบตัวเลขอีกครั้ง");
       const uploadStatus = document.getElementById("runUploadStatus");
       const runDate = document.getElementById("runDate").value;
       if (!runDate) return toast("กรุณาเลือกวันที่วิ่ง");
       const note = document.getElementById("runNote").value;
       const fingerprint = createRunFormFingerprint({ code: appState.currentUser.code, file, distance, date: runDate, note });
       const pending = appState.pendingRunUpload?.fingerprint === fingerprint ? appState.pendingRunUpload : null;
-      const clientRunId = pending?.id || createClientRunId(appState.currentUser.code);
+      const clientRunId = pending?.id || createClientRunId(appState.currentUser.code, fingerprint);
+      const submissionKey = clientRunId;
       const beforeCount = Number(pending?.beforeCount ?? appState.runs.length);
       appState.pendingRunUpload = { id: clientRunId, beforeCount, fingerprint };
       appState.isUploadingRun = true;
@@ -3442,6 +3447,7 @@
           note,
           imageData,
           clientRunId,
+          submissionKey,
           beforeCount
         });
         appState.currentUser = normalizeEmployeeRecord(employee);
@@ -3461,7 +3467,15 @@
         });
       } catch (err) {
         uploadStatus.style.display = "block";
-        uploadStatus.textContent = "❌ ยังยืนยันผลไม่ได้ ระบบจะตรวจรายการเดิมก่อนถ้ากดบันทึกอีกครั้ง";
+        if (/เซสชัน.*(?:หมดอายุ|ไม่ถูกต้อง)|เข้าสู่ระบบใหม่/i.test(err?.message || "")) {
+          appState.currentUser = null;
+          clearCurrentUserSession();
+          updateAuthUi();
+          uploadStatus.textContent = "⚠️ กรุณาเข้าสู่ระบบใหม่ก่อนบันทึกผล";
+          window.setTimeout(() => setPage("login"), 500);
+        } else {
+          uploadStatus.textContent = "❌ ยังยืนยันผลไม่ได้ ระบบจะตรวจรายการเดิมก่อนถ้ากดบันทึกอีกครั้ง";
+        }
         toast(getFriendlyErrorMessage(err));
       } finally {
         window.clearTimeout(uploadWatchdogId);
@@ -3574,8 +3588,17 @@
       updateAuthUi();
       renderDashboard();
       renderAdmin();
-      setPage(getPageFromHash(), { updateHash: false });
+      setPage(getPageFromHash(), { updateHash: false, skipRefresh: true });
       startRealtimeUpdates();
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) refreshLiveData();
+      });
+      window.addEventListener("online", refreshLiveData);
+      window.addEventListener("beforeunload", event => {
+        if (!appState.isUploadingRun) return;
+        event.preventDefault();
+        event.returnValue = "";
+      });
     }
 
     init();
