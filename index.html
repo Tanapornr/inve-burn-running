@@ -631,18 +631,46 @@
     .bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--orange), var(--orange-2)); border-radius: inherit; }
     .notice { background: #edf5ff; color: #245184; border-radius: 8px; padding: 12px 18px; margin-top: 18px; }
     .upload-box {
-      border: 1px dashed #99abc3;
-      border-radius: 10px;
-      min-height: 96px;
+      border: 2px dashed #6f8fbd;
+      border-radius: 16px;
+      min-height: 142px;
       display: grid;
       place-items: center;
       text-align: center;
-      color: #445876;
-      background: #fbfdff;
-      padding: 14px;
+      color: var(--navy);
+      background: #f7fbff;
+      padding: 20px;
+      cursor: pointer;
+      transition: border-color .2s ease, background .2s ease, transform .2s ease;
     }
-    .upload-preview { width: 96px; height: 78px; object-fit: cover; border-radius: 8px; }
-    .upload-selected { align-self: center; color: #098b4a; font-weight: 850; }
+    .upload-box:hover { border-color: var(--orange); background: #fff8f2; transform: translateY(-1px); }
+    .upload-box-icon { display: block; font-size: 38px; line-height: 1; margin-bottom: 8px; }
+    .upload-box strong { display: block; font-size: 20px; margin-bottom: 4px; }
+    .upload-box small { color: #64748b; font-weight: 700; }
+    .run-form { display: grid; gap: 18px; }
+    .run-step-section { border: 1px solid #dbe5f2; border-radius: 16px; background: #fff; padding: 18px; }
+    .run-step-title { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; color: var(--navy); font-size: 19px; font-weight: 900; }
+    .run-step-badge { width: 34px; height: 34px; border-radius: 50%; display: inline-grid; place-items: center; flex: 0 0 auto; background: var(--navy); color: #fff; font-size: 17px; }
+    .run-photo-area { grid-template-columns: 1fr; }
+    .run-photo-ready { display: grid; grid-template-columns: 132px 1fr; gap: 16px; align-items: center; padding: 14px; border: 2px solid #9dddbb; border-radius: 16px; background: #f0fff6; }
+    .upload-preview { width: 132px; height: 102px; object-fit: cover; border-radius: 12px; border: 2px solid #fff; box-shadow: 0 8px 20px rgba(0,31,85,.12); }
+    .upload-selected { color: #08783f; font-size: 18px; font-weight: 900; line-height: 1.45; }
+    .run-change-photo { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; margin-top: 8px; padding: 0 16px; border: 1px solid #7993b8; border-radius: 10px; background: #fff; color: var(--navy); font-weight: 850; cursor: pointer; }
+    .run-form input, .run-form textarea { font-size: 18px; }
+    .run-submit-button { width: 100%; min-height: 62px; margin-top: 0; border-radius: 14px; font-size: 21px; box-shadow: 0 12px 24px rgba(255,75,27,.22); }
+    .run-submit-button:disabled { opacity: .78; cursor: wait; }
+    .run-submit-hint { margin: -8px 0 0; color: #64748b; text-align: center; font-size: 14px; font-weight: 750; }
+    .run-upload-overlay { position: fixed; inset: 0; z-index: 120; display: none; place-items: center; padding: 20px; background: rgba(0,20,58,.72); }
+    .run-upload-overlay.show { display: grid; }
+    .run-upload-overlay-card { width: min(460px, 94vw); border-radius: 24px; background: #fff; padding: 30px 24px; text-align: center; box-shadow: 0 28px 80px rgba(0,20,58,.4); }
+    .run-upload-overlay-icon { width: 86px; height: 86px; margin: 0 auto 16px; border-radius: 50%; display: grid; place-items: center; background: #edf4ff; color: var(--navy); font-size: 42px; }
+    .run-upload-overlay[data-mode="loading"] .run-upload-overlay-icon { animation: runUploadPulse 1.2s ease-in-out infinite; }
+    .run-upload-overlay[data-mode="success"] .run-upload-overlay-icon { background: #e8faef; color: #098b4a; }
+    .run-upload-overlay[data-mode="error"] .run-upload-overlay-icon { background: #fff0ed; color: #e43d22; }
+    .run-upload-overlay h2 { margin: 0 0 10px; font-size: 28px; color: var(--navy); }
+    .run-upload-overlay p { margin: 0; color: #52627d; font-size: 18px; line-height: 1.55; font-weight: 700; }
+    .run-upload-overlay .btn { width: 100%; min-height: 54px; margin-top: 20px; font-size: 18px; }
+    @keyframes runUploadPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
     .proof-link { display: inline-flex; align-items: center; gap: 8px; color: var(--navy); font-weight: 850; text-decoration: none; border: 0; background: transparent; padding: 0; cursor: pointer; font: inherit; }
     .proof-thumb { width: 58px; height: 44px; border-radius: 8px; object-fit: cover; border: 1px solid var(--line); background: #eef3fb; }
     .proof-open { display: inline-flex; align-items: center; gap: 4px; color: #098b4a; }
@@ -779,6 +807,16 @@
       .profile-detail { text-align: left; padding: 13px 14px; }
       .profile-detail .profile-value { font-size: 17px; justify-content: flex-start; }
       .profile-actions { justify-content: center; }
+      .run-step-section { padding: 15px; }
+      .upload-box { min-height: 126px; padding: 16px 12px; }
+      .upload-box strong { font-size: 19px; }
+      .run-photo-ready { grid-template-columns: 96px minmax(0, 1fr); gap: 12px; padding: 12px; }
+      .upload-preview { width: 96px; height: 84px; }
+      .upload-selected { font-size: 16px; }
+      .run-submit-button { min-height: 64px; font-size: 20px; }
+      .run-upload-overlay-card { padding: 26px 20px; }
+      .run-upload-overlay h2 { font-size: 25px; }
+      .run-upload-overlay p { font-size: 17px; }
       .home-goal-rankings { padding: 12px; }
       .panel-body { padding: 20px 16px; }
       .reward-box { padding: 7px; border-radius: 16px; }
@@ -1172,29 +1210,41 @@
         <section class="panel">
           <div class="panel-body">
             <h2 style="margin-top:0">🏃 บันทึกผลการวิ่ง</h2>
-            <form id="runForm">
-              <label>อัปโหลดรูปหลักฐานการวิ่ง</label>
-              <div class="record-layout">
-                <img class="upload-preview" id="runPreview" alt="ตัวอย่างรูป" src="" style="display:none">
-                <label class="upload-box" id="runUploadBox" for="runImage">
-                  <span>ลากไฟล์มาวางที่นี่<br>หรือ <b class="muted-link">คลิกเพื่อเลือกไฟล์</b><br><small>รองรับ JPG, JPEG, PNG, WEBP, HEIC ไม่เกิน 5MB</small></span>
-                </label>
-                <div class="upload-selected" id="runUploadStatus" style="display:none">✅ อัปโหลดรูปแล้ว 1 รูป</div>
-              </div>
-              <input type="file" id="runImage" accept="image/png,image/jpeg,image/webp,image/heic,image/heif" hidden>
-              <div class="field-grid" style="margin-top:16px">
-                <div>
-                  <label for="runDistance">ระยะทางที่วิ่งได้ (กม.) <span class="req">*</span></label>
-                  <input id="runDistance" type="number" step="0.01" min="0.1" required placeholder="12.30">
+            <form class="run-form" id="runForm">
+              <section class="run-step-section">
+                <div class="run-step-title"><span class="run-step-badge">1</span> เลือกรูปหลักฐาน 1 รูป</div>
+                <div class="record-layout run-photo-area">
+                  <label class="upload-box" id="runUploadBox" for="runImage">
+                    <span><span class="upload-box-icon">📷</span><strong>แตะเพื่อถ่ายรูปหรือเลือกรูป</strong><small>เลือกรูปเดียว ระบบจะย่อรูปให้อัตโนมัติ</small></span>
+                  </label>
+                  <div class="run-photo-ready" id="runPhotoReady" style="display:none">
+                    <img class="upload-preview" id="runPreview" alt="รูปหลักฐานที่เลือก" src="" style="display:none">
+                    <div>
+                      <div class="upload-selected" id="runUploadStatus" role="status" aria-live="polite">✅ เลือกรูปแล้ว</div>
+                      <label class="run-change-photo" for="runImage">เปลี่ยนรูป</label>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label for="runDate">วันที่วิ่ง <span class="req">*</span></label>
-                  <input id="runDate" type="date" required>
+                <input type="file" id="runImage" accept="image/*" hidden>
+              </section>
+              <section class="run-step-section">
+                <div class="run-step-title"><span class="run-step-badge">2</span> กรอกระยะทางและวันที่</div>
+                <div class="field-grid">
+                  <div>
+                    <label for="runDistance">ระยะทางที่วิ่งได้ (กม.) <span class="req">*</span></label>
+                    <input id="runDistance" type="number" inputmode="decimal" step="0.01" min="0.1" required placeholder="กรอกระยะทาง เช่น 2.50">
+                  </div>
+                  <div>
+                    <label for="runDate">วันที่วิ่ง <span class="req">*</span></label>
+                    <input id="runDate" type="date" required>
+                  </div>
                 </div>
-              </div>
-              <label for="runNote" style="margin-top:14px">หมายเหตุ (ไม่บังคับ)</label>
-              <textarea id="runNote" placeholder="เช่น วิ่งช่วงเย็น อากาศดี"></textarea>
-              <button class="btn btn-orange" id="runSubmitBtn" type="submit" style="width:100%;margin-top:12px">บันทึกผลการวิ่ง</button>
+                <label for="runNote" style="margin-top:14px">หมายเหตุ (ไม่บังคับ)</label>
+                <textarea id="runNote" placeholder="ไม่กรอกก็ได้"></textarea>
+              </section>
+              <div class="run-step-title" style="margin:0"><span class="run-step-badge">3</span> กดบันทึกเพียงครั้งเดียว</div>
+              <button class="btn btn-orange run-submit-button" id="runSubmitBtn" type="submit">บันทึกผลการวิ่ง</button>
+              <p class="run-submit-hint">หลังจากกดแล้ว กรุณารอจนเห็นคำว่า “บันทึกสำเร็จ”</p>
             </form>
           </div>
         </section>
@@ -1356,6 +1406,14 @@
   </footer>
 
   <div class="toast" id="toast"></div>
+  <div class="run-upload-overlay" id="runUploadOverlay" role="dialog" aria-modal="true" aria-hidden="true" data-mode="loading">
+    <div class="run-upload-overlay-card">
+      <div class="run-upload-overlay-icon" id="runUploadOverlayIcon">⏳</div>
+      <h2 id="runUploadOverlayTitle">กำลังบันทึกผล</h2>
+      <p id="runUploadOverlayMessage" role="status" aria-live="assertive">กรุณารอสักครู่ และไม่ต้องกดซ้ำ</p>
+      <button class="btn btn-navy" id="runUploadOverlayClose" type="button" style="display:none">ตกลง</button>
+    </div>
+  </div>
   <div class="modal" id="registrationWindowModal" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <h2 id="registrationWindowModalTitle">แจ้งเตือนการลงทะเบียน</h2>
@@ -1447,7 +1505,8 @@
       adminGoalRankingPages: {},
       rankingFilter: { period: "all", department: "", query: "" },
       pendingRunUpload: null,
-      runStatusApiSupported: null
+      preparedRunImage: null,
+      runStatusApiSupported: false
     };
     let refreshInFlight = false;
     let refreshTimer = null;
@@ -1496,6 +1555,29 @@
       }
     }
 
+    function setRunUploadOverlay(mode, title, message) {
+      const overlay = document.getElementById("runUploadOverlay");
+      const closeButton = document.getElementById("runUploadOverlayClose");
+      if (!overlay) return;
+      const icons = { loading: "⏳", success: "✅", error: "⚠️" };
+      overlay.dataset.mode = mode;
+      document.getElementById("runUploadOverlayIcon").textContent = icons[mode] || icons.loading;
+      document.getElementById("runUploadOverlayTitle").textContent = title;
+      document.getElementById("runUploadOverlayMessage").textContent = message;
+      closeButton.style.display = mode === "loading" ? "none" : "inline-flex";
+      overlay.classList.add("show");
+      overlay.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeRunUploadOverlay() {
+      const overlay = document.getElementById("runUploadOverlay");
+      if (!overlay || overlay.dataset.mode === "loading") return;
+      overlay.classList.remove("show");
+      overlay.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+    }
+
     function restoreRunFormControls() {
       const submitButton = document.getElementById("runSubmitBtn");
       if (!submitButton || appState.isUploadingRun) return;
@@ -1504,10 +1586,49 @@
       const uploadStatus = document.getElementById("runUploadStatus");
       if (imageInput?.files?.length === 1 && uploadStatus) {
         uploadStatus.style.display = "block";
-        if (/กำลัง/.test(uploadStatus.textContent || "")) {
-          uploadStatus.textContent = "✅ อัปโหลดรูปแล้ว 1 รูป";
+        if (/กำลัง/.test(uploadStatus.textContent || "") && appState.preparedRunImage?.dataUrl) {
+          uploadStatus.textContent = "✅ รูปพร้อมบันทึกแล้ว";
         }
       }
+    }
+
+    function getRunImageKey(file) {
+      return [file?.name || "", file?.size || 0, file?.lastModified || 0].join(":");
+    }
+
+    function prepareRunImage(file) {
+      const key = getRunImageKey(file);
+      const prepared = {
+        key,
+        dataUrl: "",
+        error: null,
+        promise: withTimeout(
+          fileToOptimizedBase64(file),
+          24000,
+          "เตรียมรูปไม่สำเร็จ กรุณาเลือกรูปใหม่ หรือแคปหน้าจอแล้วลองอีกครั้ง"
+        )
+      };
+      appState.preparedRunImage = prepared;
+      prepared.promise.then(dataUrl => {
+        if (appState.preparedRunImage?.key !== key) return;
+        prepared.dataUrl = dataUrl;
+        const status = document.getElementById("runUploadStatus");
+        if (status) status.textContent = "✅ รูปพร้อมบันทึกแล้ว";
+      }, error => {
+        if (appState.preparedRunImage?.key !== key) return;
+        prepared.error = error;
+        const status = document.getElementById("runUploadStatus");
+        if (status) status.textContent = "❌ รูปนี้อ่านไม่ได้ กรุณาเปลี่ยนรูป";
+      });
+      return prepared.promise;
+    }
+
+    async function getPreparedRunImageData(file) {
+      const key = getRunImageKey(file);
+      const prepared = appState.preparedRunImage?.key === key ? appState.preparedRunImage : null;
+      if (prepared?.dataUrl) return prepared.dataUrl;
+      if (prepared?.error) throw prepared.error;
+      return prepared?.promise || prepareRunImage(file);
     }
 
     function getFileExtension(file) {
@@ -1689,12 +1810,12 @@
           uploadError = err;
         });
 
-        await Promise.race([uploadRequest, sleep(150000)]);
+        await sleep(700);
         const dashboard = await waitForRunSync(
           authenticatedPayload.code,
           beforeCount,
           authenticatedPayload.clientRunId,
-          8
+          12
         );
         const syncedRuns = dashboard?.runs || [];
         if (dashboard?.employee && hasSyncedRun(syncedRuns, beforeCount, authenticatedPayload.clientRunId)) {
@@ -3049,7 +3170,7 @@
             dataUrl => finish(resolve, dataUrl),
             error => finish(reject, error)
           );
-        }, 18000);
+        }, 12000);
         const cleanup = () => {
           window.clearTimeout(decodeTimeoutId);
           URL.revokeObjectURL(objectUrl);
@@ -3062,14 +3183,16 @@
         };
         image.onload = () => {
           try {
-            const maxSize = 1100;
+            const maxSize = 900;
             const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
             const canvas = document.createElement("canvas");
             canvas.width = Math.max(1, Math.round(image.width * scale));
             canvas.height = Math.max(1, Math.round(image.height * scale));
             const context = canvas.getContext("2d");
             context.drawImage(image, 0, 0, canvas.width, canvas.height);
-            finish(resolve, canvas.toDataURL("image/jpeg", 0.70));
+            let optimized = canvas.toDataURL("image/jpeg", 0.60);
+            if (optimized.length > 650000) optimized = canvas.toDataURL("image/jpeg", 0.48);
+            finish(resolve, optimized);
           } catch (err) {
             fileToOriginalImageBase64(file).then(
               dataUrl => finish(resolve, dataUrl),
@@ -3341,6 +3464,7 @@
       appState.uploadStartedAt = 0;
       appState.runUploadToken = "";
       appState.pendingRunUpload = null;
+      appState.preparedRunImage = null;
       setButtonLoading(document.getElementById("runSubmitBtn"), false);
       const preview = document.getElementById("runPreview");
       if (preview.dataset.objectUrl) URL.revokeObjectURL(preview.dataset.objectUrl);
@@ -3348,7 +3472,7 @@
       preview.style.display = "none";
       preview.src = "";
       document.getElementById("runUploadBox").style.display = "grid";
-      document.getElementById("runUploadStatus").style.display = "none";
+      document.getElementById("runPhotoReady").style.display = "none";
       document.getElementById("runImage").value = "";
     }
 
@@ -3379,12 +3503,13 @@
       preview.src = previewUrl;
       preview.onerror = () => {
         preview.style.display = "none";
-        document.getElementById("runUploadStatus").textContent = "✅ เลือกรูปแล้ว 1 รูป พร้อมบันทึก";
+        document.getElementById("runUploadStatus").textContent = "⏳ กำลังเตรียมรูป...";
       };
       preview.style.display = "block";
       document.getElementById("runUploadBox").style.display = "none";
-      document.getElementById("runUploadStatus").style.display = "block";
-      document.getElementById("runUploadStatus").textContent = "✅ เลือกรูปแล้ว 1 รูป พร้อมบันทึก";
+      document.getElementById("runPhotoReady").style.display = "grid";
+      document.getElementById("runUploadStatus").textContent = "⏳ เลือกรูปแล้ว กำลังเตรียมรูป...";
+      prepareRunImage(file);
       restoreRunFormControls();
     });
 
@@ -3416,15 +3541,27 @@
       const imageInput = document.getElementById("runImage");
       if (imageInput.files.length > 1) return toast("อัปโหลดได้ครั้งละ 1 รูปเท่านั้น");
       const file = imageInput.files[0];
-      if (!file) return toast("กรุณาอัปโหลดรูปหลักฐานการวิ่ง 1 รูป");
+      if (!file) {
+        toast("กรุณาเลือกรูปหลักฐานการวิ่ง 1 รูป");
+        document.getElementById("runUploadBox").click();
+        return;
+      }
       if (!isSupportedRunImage(file)) return toast("รองรับไฟล์ JPG, JPEG, PNG, WEBP หรือ HEIC/HEIF เท่านั้น");
       if (file.size > RUN_IMAGE_MAX_SIZE) return toast("ขนาดไฟล์ต้องไม่เกิน 5MB");
       const distance = Number(document.getElementById("runDistance").value);
-      if (!distance || distance <= 0) return toast("กรุณากรอกระยะทางที่ถูกต้อง");
+      if (!distance || distance <= 0) {
+        toast("กรุณากรอกระยะทางที่วิ่งได้");
+        document.getElementById("runDistance").focus();
+        return;
+      }
       if (distance > 100) return toast("ระยะทางต่อครั้งต้องไม่เกิน 100 กิโลเมตร กรุณาตรวจสอบตัวเลขอีกครั้ง");
       const uploadStatus = document.getElementById("runUploadStatus");
       const runDate = document.getElementById("runDate").value;
-      if (!runDate) return toast("กรุณาเลือกวันที่วิ่ง");
+      if (!runDate) {
+        toast("กรุณาเลือกวันที่วิ่ง");
+        document.getElementById("runDate").focus();
+        return;
+      }
       const note = document.getElementById("runNote").value;
       const fingerprint = createRunFormFingerprint({ code: appState.currentUser.code, file, distance, date: runDate, note });
       const pending = appState.pendingRunUpload?.fingerprint === fingerprint ? appState.pendingRunUpload : null;
@@ -3436,13 +3573,16 @@
       appState.uploadStartedAt = Date.now();
       const uploadToken = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       appState.runUploadToken = uploadToken;
-      setButtonLoading(submitButton, true, "กำลังย่อรูป...");
+      setButtonLoading(submitButton, true, "กำลังบันทึก กรุณารอ...");
       uploadStatus.style.display = "block";
-      uploadStatus.textContent = "⏳ กำลังย่อรูปก่อนอัปโหลด...";
+      uploadStatus.textContent = "⏳ กำลังเตรียมข้อมูล กรุณารอ...";
+      setRunUploadOverlay("loading", "กำลังบันทึกผล", "กรุณารอสักครู่ ไม่ต้องกดซ้ำ และอย่าปิดหน้านี้");
       const uploadProgressId = window.setInterval(() => {
         if (appState.runUploadToken !== uploadToken || !appState.isUploadingRun) return;
         const elapsedSeconds = Math.max(1, Math.round((Date.now() - appState.uploadStartedAt) / 1000));
-        uploadStatus.textContent = `⏳ กำลังส่งรูปและตรวจผล (${elapsedSeconds} วินาที) กรุณาอย่าปิดหน้านี้`;
+        const progressMessage = `ระบบกำลังส่งรูปและตรวจผล ${elapsedSeconds} วินาที กรุณารอต่ออีกนิด`;
+        uploadStatus.textContent = `⏳ ${progressMessage}`;
+        setRunUploadOverlay("loading", "กำลังบันทึกผล", progressMessage);
       }, 5000);
       const uploadWatchdogId = window.setTimeout(() => {
         if (appState.runUploadToken !== uploadToken || !appState.isUploadingRun) return;
@@ -3452,6 +3592,7 @@
         setButtonLoading(submitButton, false);
         uploadStatus.style.display = "block";
         uploadStatus.textContent = "⚠️ ใช้เวลานานผิดปกติ กดบันทึกอีกครั้งได้ ระบบจะตรวจไม่ให้บันทึกซ้ำ";
+        setRunUploadOverlay("error", "การเชื่อมต่อใช้เวลานาน", "กดตกลงแล้วกดบันทึกอีกครั้งได้ ระบบจะตรวจไม่ให้บันทึกซ้ำ");
         toast("เน็ตหรือรูปใช้เวลานาน กดบันทึกอีกครั้งได้ ระบบจะไม่บันทึกซ้ำ");
       }, 240000);
       try {
@@ -3468,18 +3609,19 @@
             renderDashboard();
             event.target.reset();
             resetRunUploadUi();
+            setRunUploadOverlay("success", "บันทึกสำเร็จแล้ว", `ระบบบันทึกระยะทาง ${fmt.format(distance)} กิโลเมตรเรียบร้อยแล้ว`);
             toast("พบรายการที่บันทึกสำเร็จแล้ว ไม่บันทึกซ้ำ");
             return;
           }
         }
         const imageData = file ? await withTimeout(
-          fileToOptimizedBase64(file),
-          30000,
+          getPreparedRunImageData(file),
+          26000,
           "ย่อรูปไม่สำเร็จภายในเวลาที่กำหนด กรุณาเลือกรูปใหม่ หรือแคปหน้าจอเป็น JPG/PNG แล้วลองอีกครั้ง"
         ) : "";
         setButtonLoading(submitButton, true, "กำลังบันทึก...");
         uploadStatus.textContent = "⏳ กำลังอัปโหลดและบันทึกผล...";
-        toast("กำลังอัปโหลดรูปและบันทึกผล กรุณารอสักครู่");
+        setRunUploadOverlay("loading", "กำลังส่งรูป", "รูปพร้อมแล้ว ระบบกำลังบันทึกข้อมูล กรุณารอสักครู่");
         const { employee, runs } = await api("addRun", {
           code: appState.currentUser.code,
           distance,
@@ -3499,6 +3641,7 @@
         renderDashboard();
         event.target.reset();
         resetRunUploadUi();
+        setRunUploadOverlay("success", "บันทึกสำเร็จแล้ว", `ระบบบันทึกระยะทาง ${fmt.format(distance)} กิโลเมตรเรียบร้อยแล้ว`);
         toast("บันทึกผลการวิ่งเรียบร้อย");
         refreshRegisteredDataSafely().then(() => {
           renderStats();
@@ -3516,6 +3659,7 @@
         } else {
           uploadStatus.textContent = "❌ ยังยืนยันผลไม่ได้ ระบบจะตรวจรายการเดิมก่อนถ้ากดบันทึกอีกครั้ง";
         }
+        setRunUploadOverlay("error", "ยังบันทึกไม่สำเร็จ", getFriendlyErrorMessage(err));
         toast(getFriendlyErrorMessage(err));
       } finally {
         window.clearInterval(uploadProgressId);
@@ -3528,6 +3672,8 @@
         }
       }
     });
+
+    document.getElementById("runUploadOverlayClose").addEventListener("click", closeRunUploadOverlay);
 
     document.querySelectorAll("[data-toggle-password]").forEach(button => {
       button.addEventListener("click", () => {
