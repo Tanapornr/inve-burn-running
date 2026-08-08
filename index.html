@@ -1446,7 +1446,8 @@
       homeLeaderboardPages: {},
       adminGoalRankingPages: {},
       rankingFilter: { period: "all", department: "", query: "" },
-      pendingRunUpload: null
+      pendingRunUpload: null,
+      runStatusApiSupported: null
     };
     let refreshInFlight = false;
     let refreshTimer = null;
@@ -1667,35 +1668,44 @@
       }
       if (action === "addRun") {
         const authenticatedPayload = { ...payload, sessionToken: appState.sessionToken };
-        try {
-          return await apiProxy(action, authenticatedPayload, 55000);
-        } catch (err) {
-          if (err.apiResponded) throw err;
-          const beforeCount = Number(authenticatedPayload.beforeCount ?? appState.runs.length);
-          const syncedBeforeRetry = await waitForRunSync(authenticatedPayload.code, beforeCount, authenticatedPayload.clientRunId, 10);
-          if (hasSyncedRun(syncedBeforeRetry?.runs || [], beforeCount, authenticatedPayload.clientRunId)) {
-            return {
-              ok: true,
-              employee: syncedBeforeRetry.employee,
-              runs: syncedBeforeRetry.runs || []
-            };
-          }
-          const requestBody = JSON.stringify({ action, ...authenticatedPayload });
-          await fetch(CONFIG.apiUrl, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: requestBody
-          });
-          const dashboard = await waitForRunSync(authenticatedPayload.code, beforeCount, authenticatedPayload.clientRunId, 12);
-          const syncedRuns = dashboard?.runs || [];
-          if (!dashboard?.employee || !hasSyncedRun(syncedRuns, beforeCount, authenticatedPayload.clientRunId)) throw new Error("บันทึกผลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+        const beforeCount = Number(authenticatedPayload.beforeCount ?? appState.runs.length);
+        const existingStatus = await fetchRunStatus(authenticatedPayload.code, authenticatedPayload.clientRunId);
+        if (existingStatus?.found) {
+          const existingDashboard = await apiProxy("getDashboard", { code: authenticatedPayload.code }, 25000);
+          return {
+            ok: true,
+            employee: existingDashboard.employee,
+            runs: existingDashboard.runs || []
+          };
+        }
+        const requestBody = JSON.stringify({ action, ...authenticatedPayload });
+        let uploadError = null;
+        const uploadRequest = fetch(CONFIG.apiUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: requestBody
+        }).catch(err => {
+          uploadError = err;
+        });
+
+        await Promise.race([uploadRequest, sleep(150000)]);
+        const dashboard = await waitForRunSync(
+          authenticatedPayload.code,
+          beforeCount,
+          authenticatedPayload.clientRunId,
+          8
+        );
+        const syncedRuns = dashboard?.runs || [];
+        if (dashboard?.employee && hasSyncedRun(syncedRuns, beforeCount, authenticatedPayload.clientRunId)) {
           return {
             ok: true,
             employee: dashboard.employee,
             runs: syncedRuns
           };
         }
+        if (uploadError) throw uploadError;
+        throw new Error("ยังไม่พบผลที่บันทึก ระบบจะใช้รายการเดิมเมื่อลองอีกครั้ง กรุณาเข้าสู่ระบบใหม่หากยังไม่สำเร็จ");
       }
       const requestBody = JSON.stringify({ action, ...payload });
       try {
@@ -1776,15 +1786,40 @@
       return runs.length > beforeCount;
     }
 
+    async function fetchRunStatus(code, clientRunId) {
+      if (!clientRunId || appState.runStatusApiSupported === false) return null;
+      try {
+        const status = await apiProxy("getRunStatus", {
+          code,
+          clientRunId,
+          submissionKey: clientRunId,
+          sessionToken: appState.sessionToken
+        }, 20000);
+        appState.runStatusApiSupported = true;
+        return status;
+      } catch (err) {
+        if (/เซสชัน.*(?:หมดอายุ|ไม่ถูกต้อง)|เข้าสู่ระบบใหม่/i.test(err?.message || "")) throw err;
+        if (/action|ไม่พบ.*ร้องขอ/i.test(err?.message || "")) {
+          appState.runStatusApiSupported = false;
+          return null;
+        }
+        console.warn("Run status check unavailable", err);
+        return null;
+      }
+    }
+
     async function waitForRunSync(code, beforeCount, clientRunId = "", attempts = 6) {
       let latestDashboard = null;
       for (let attempt = 0; attempt < attempts; attempt += 1) {
-        await sleep(attempt === 0 ? 1200 : 1200);
+        await sleep(attempt === 0 ? 1200 : 2500);
         try {
-          latestDashboard = await apiJsonp("getDashboard", { code });
+          const status = await fetchRunStatus(code, clientRunId);
+          if (status && !status.found) continue;
+          latestDashboard = await apiProxy("getDashboard", { code }, 25000);
           if (hasSyncedRun(latestDashboard.runs || [], beforeCount, clientRunId)) return latestDashboard;
         } catch (err) {
           console.warn("Run sync retry failed", err);
+          if (/เซสชัน.*(?:หมดอายุ|ไม่ถูกต้อง)|เข้าสู่ระบบใหม่/i.test(err?.message || "")) throw err;
         }
       }
       return latestDashboard;
@@ -3027,14 +3062,14 @@
         };
         image.onload = () => {
           try {
-            const maxSize = 1400;
+            const maxSize = 1100;
             const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
             const canvas = document.createElement("canvas");
             canvas.width = Math.max(1, Math.round(image.width * scale));
             canvas.height = Math.max(1, Math.round(image.height * scale));
             const context = canvas.getContext("2d");
             context.drawImage(image, 0, 0, canvas.width, canvas.height);
-            finish(resolve, canvas.toDataURL("image/jpeg", 0.78));
+            finish(resolve, canvas.toDataURL("image/jpeg", 0.70));
           } catch (err) {
             fileToOriginalImageBase64(file).then(
               dataUrl => finish(resolve, dataUrl),
@@ -3358,7 +3393,7 @@
       const submitButton = document.getElementById("runSubmitBtn");
       if (appState.isUploadingRun) {
         const elapsed = Date.now() - Number(appState.uploadStartedAt || 0);
-        if (elapsed > 90000) {
+        if (elapsed > 240000) {
           appState.isUploadingRun = false;
           appState.uploadStartedAt = 0;
           appState.runUploadToken = "";
@@ -3404,6 +3439,11 @@
       setButtonLoading(submitButton, true, "กำลังย่อรูป...");
       uploadStatus.style.display = "block";
       uploadStatus.textContent = "⏳ กำลังย่อรูปก่อนอัปโหลด...";
+      const uploadProgressId = window.setInterval(() => {
+        if (appState.runUploadToken !== uploadToken || !appState.isUploadingRun) return;
+        const elapsedSeconds = Math.max(1, Math.round((Date.now() - appState.uploadStartedAt) / 1000));
+        uploadStatus.textContent = `⏳ กำลังส่งรูปและตรวจผล (${elapsedSeconds} วินาที) กรุณาอย่าปิดหน้านี้`;
+      }, 5000);
       const uploadWatchdogId = window.setTimeout(() => {
         if (appState.runUploadToken !== uploadToken || !appState.isUploadingRun) return;
         appState.isUploadingRun = false;
@@ -3413,7 +3453,7 @@
         uploadStatus.style.display = "block";
         uploadStatus.textContent = "⚠️ ใช้เวลานานผิดปกติ กดบันทึกอีกครั้งได้ ระบบจะตรวจไม่ให้บันทึกซ้ำ";
         toast("เน็ตหรือรูปใช้เวลานาน กดบันทึกอีกครั้งได้ ระบบจะไม่บันทึกซ้ำ");
-      }, 120000);
+      }, 240000);
       try {
         if (pending?.id) {
           uploadStatus.textContent = "⏳ กำลังตรวจสอบรายการก่อนหน้า...";
@@ -3478,6 +3518,7 @@
         }
         toast(getFriendlyErrorMessage(err));
       } finally {
+        window.clearInterval(uploadProgressId);
         window.clearTimeout(uploadWatchdogId);
         if (appState.runUploadToken === uploadToken) {
           appState.isUploadingRun = false;

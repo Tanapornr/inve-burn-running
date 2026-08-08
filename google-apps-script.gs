@@ -50,6 +50,7 @@ function routeAction_(body) {
       register,
       login,
       addRun: addRunV2,
+      getRunStatus: getRunStatusV2,
       updateProfilePhoto,
       getDashboard: getDashboardV2,
       systemCheck,
@@ -295,6 +296,28 @@ function getDashboardV2(body) {
     leaderboard,
     stats: buildStatsFromRows_(users, runs, leaderboard),
     runs: code ? mapRunsByCode_(code, runs) : mapAllRuns_(runs)
+  };
+}
+
+function getRunStatusV2(body) {
+  const code = normalizeCode_(body.code || body.employeeCode);
+  requireSession_(body, code);
+  const runId = normalizeRunId_(body.clientRunId || body.runId || body.id);
+  const submissionKey = normalizeRunId_(body.submissionKey || body.idempotencyKey || runId);
+  if (!runId && !submissionKey) throw new Error('ไม่พบรหัสรายการบันทึกผล');
+
+  const run = findRunByIdOrSubmissionKey_(runId, submissionKey);
+  if (run && !codeMatches_(run.code, code)) throw new Error('ไม่มีสิทธิ์ตรวจสอบรายการนี้');
+  return {
+    ok: true,
+    found: Boolean(run),
+    run: run ? {
+      id: run.id || '',
+      code: normalizeCode_(run.code),
+      distance: Number(run.distance || 0),
+      date: run.date,
+      imageUrl: run.imageUrl || ''
+    } : null
   };
 }
 
