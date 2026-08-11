@@ -1522,6 +1522,13 @@
       heic: "image/heic",
       heif: "image/heif"
     };
+    const RUN_IMAGE_MIME_ALIASES = {
+      "image/jpg": "image/jpeg",
+      "image/pjpeg": "image/jpeg",
+      "image/x-png": "image/png",
+      "image/heic-sequence": "image/heic",
+      "image/heif-sequence": "image/heif"
+    };
     const RUN_IMAGE_ACCEPTED_MIMES = new Set(Object.values(RUN_IMAGE_MIME_BY_EXTENSION));
     const AVATAR_IMAGE_ACCEPTED_MIMES = new Set(["image/jpeg", "image/png", "image/webp"]);
     const PAGE_HASHES = {
@@ -1618,7 +1625,7 @@
         if (appState.preparedRunImage?.key !== key) return;
         prepared.error = error;
         const status = document.getElementById("runUploadStatus");
-        if (status) status.textContent = "❌ รูปนี้อ่านไม่ได้ กรุณาเปลี่ยนรูป";
+        if (status) status.textContent = "✅ เลือกรูปแล้ว กดบันทึกได้ ระบบจะลองส่งรูปต้นฉบับให้อัตโนมัติ";
       });
       return prepared.promise;
     }
@@ -1627,8 +1634,16 @@
       const key = getRunImageKey(file);
       const prepared = appState.preparedRunImage?.key === key ? appState.preparedRunImage : null;
       if (prepared?.dataUrl) return prepared.dataUrl;
-      if (prepared?.error) throw prepared.error;
-      return prepared?.promise || prepareRunImage(file);
+      try {
+        return await (prepared?.promise || prepareRunImage(file));
+      } catch (error) {
+        await new Promise(resolve => window.setTimeout(resolve, 350));
+        return withTimeout(
+          fileToOriginalImageBase64(file, true),
+          45000,
+          "โทรศัพท์อ่านรูปไม่สำเร็จ กรุณากดเปลี่ยนรูปแล้วเลือกรูปอีกครั้ง"
+        );
+      }
     }
 
     function getFileExtension(file) {
@@ -1638,7 +1653,8 @@
 
     function getImageMimeFromFile(file) {
       const type = String(file?.type || "").toLowerCase();
-      if (RUN_IMAGE_ACCEPTED_MIMES.has(type)) return type;
+      const normalizedType = RUN_IMAGE_MIME_ALIASES[type] || type;
+      if (RUN_IMAGE_ACCEPTED_MIMES.has(normalizedType)) return normalizedType;
       return RUN_IMAGE_MIME_BY_EXTENSION[getFileExtension(file)] || "";
     }
 
@@ -3144,15 +3160,50 @@
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
+        reader.onerror = () => reject(reader.error || new Error("โทรศัพท์อ่านไฟล์รูปไม่สำเร็จ"));
+        reader.onabort = () => reject(new Error("การอ่านไฟล์รูปถูกยกเลิก"));
         reader.readAsDataURL(file);
       });
     }
 
-    async function fileToOriginalImageBase64(file) {
+    function fileToArrayBuffer(file) {
+      if (typeof file?.arrayBuffer === "function") return file.arrayBuffer();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error || new Error("โทรศัพท์อ่านข้อมูลรูปไม่สำเร็จ"));
+        reader.onabort = () => reject(new Error("การอ่านข้อมูลรูปถูกยกเลิก"));
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    async function fileToBase64ViaArrayBuffer(file, mimeType) {
+      const buffer = await fileToArrayBuffer(file);
+      const bytes = new Uint8Array(buffer);
+      if (!bytes.length) throw new Error("ไฟล์รูปไม่มีข้อมูล");
+      let binary = "";
+      const chunkSize = 0x8000;
+      for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+      }
+      return `data:${mimeType};base64,${window.btoa(binary)}`;
+    }
+
+    async function fileToOriginalImageBase64(file, preferArrayBuffer = false) {
       const mimeType = getImageMimeFromFile(file);
       if (!mimeType) throw new Error("ไฟล์รูปไม่ถูกต้อง กรุณาเลือกรูป JPG, PNG, WEBP หรือ HEIC/HEIF");
-      return normalizeDataUrlMime(await fileToBase64(file), mimeType);
+      if (preferArrayBuffer) {
+        try {
+          return await fileToBase64ViaArrayBuffer(file, mimeType);
+        } catch (arrayBufferError) {
+          return normalizeDataUrlMime(await fileToBase64(file), mimeType);
+        }
+      }
+      try {
+        return normalizeDataUrlMime(await fileToBase64(file), mimeType);
+      } catch (fileReaderError) {
+        return fileToBase64ViaArrayBuffer(file, mimeType);
+      }
     }
 
     function fileToOptimizedBase64(file) {
@@ -3162,15 +3213,23 @@
           reject(new Error("ไฟล์รูปไม่ถูกต้อง กรุณาเลือกรูป JPG, PNG, WEBP หรือ HEIC/HEIF"));
           return;
         }
-        const objectUrl = URL.createObjectURL(file);
+        let objectUrl = "";
+        try {
+          objectUrl = URL.createObjectURL(file);
+        } catch (error) {
+          fileToOriginalImageBase64(file, true).then(resolve, reject);
+          return;
+        }
         const image = new Image();
         let finished = false;
+        const originalImagePromise = fileToOriginalImageBase64(file);
+        originalImagePromise.catch(() => {});
         const decodeTimeoutId = window.setTimeout(() => {
-          fileToOriginalImageBase64(file).then(
+          originalImagePromise.then(
             dataUrl => finish(resolve, dataUrl),
             error => finish(reject, error)
           );
-        }, 12000);
+        }, 4500);
         const cleanup = () => {
           window.clearTimeout(decodeTimeoutId);
           URL.revokeObjectURL(objectUrl);
@@ -3194,14 +3253,14 @@
             if (optimized.length > 650000) optimized = canvas.toDataURL("image/jpeg", 0.48);
             finish(resolve, optimized);
           } catch (err) {
-            fileToOriginalImageBase64(file).then(
+            originalImagePromise.then(
               dataUrl => finish(resolve, dataUrl),
               error => finish(reject, error)
             );
           }
         };
         image.onerror = () => {
-          fileToOriginalImageBase64(file).then(
+          originalImagePromise.then(
             dataUrl => finish(resolve, dataUrl),
             error => finish(reject, error)
           );
@@ -3616,8 +3675,8 @@
         }
         const imageData = file ? await withTimeout(
           getPreparedRunImageData(file),
-          26000,
-          "ย่อรูปไม่สำเร็จภายในเวลาที่กำหนด กรุณาเลือกรูปใหม่ หรือแคปหน้าจอเป็น JPG/PNG แล้วลองอีกครั้ง"
+          60000,
+          "โทรศัพท์อ่านรูปไม่สำเร็จภายในเวลาที่กำหนด กรุณากดเปลี่ยนรูปแล้วเลือกรูปเดิมอีกครั้ง"
         ) : "";
         setButtonLoading(submitButton, true, "กำลังบันทึก...");
         uploadStatus.textContent = "⏳ กำลังอัปโหลดและบันทึกผล...";
