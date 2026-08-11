@@ -1736,11 +1736,13 @@
     async function apiProxy(action, payload = {}, timeoutMs = 15000) {
       if (!CONFIG.apiProxyUrl) throw new Error("ยังไม่ได้ตั้งค่า API Proxy");
       let res;
+      const requestBody = JSON.stringify({ action, ...payload });
       try {
         res = await fetchWithTimeout(CONFIG.apiProxyUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action, ...payload })
+          body: requestBody,
+          keepalive: action === "addRun" && requestBody.length < 60000
         }, timeoutMs);
       } catch (err) {
         if (isNetworkError(err)) {
@@ -1806,14 +1808,12 @@
       if (action === "addRun") {
         const authenticatedPayload = { ...payload, sessionToken: appState.sessionToken };
         const beforeCount = Number(authenticatedPayload.beforeCount ?? appState.runs.length);
-        const existingStatus = await fetchRunStatus(authenticatedPayload.code, authenticatedPayload.clientRunId);
-        if (existingStatus?.found) {
-          const existingDashboard = await apiProxy("getDashboard", { code: authenticatedPayload.code }, 25000);
-          return {
-            ok: true,
-            employee: existingDashboard.employee,
-            runs: existingDashboard.runs || []
-          };
+        try {
+          return await apiProxy(action, authenticatedPayload, 55000);
+        } catch (err) {
+          const canUseDirectFallback = !err.apiResponded || /เชื่อมต่อระบบ|ช้าเกินไป|ตอบกลับไม่ถูกต้อง|timeout|Apps Script/i.test(err?.message || "");
+          if (!canUseDirectFallback) throw err;
+          console.warn("Fast upload proxy unavailable, using direct fallback", err);
         }
         const requestBody = JSON.stringify({ action, ...authenticatedPayload });
         let uploadError = null;
@@ -1826,12 +1826,12 @@
           uploadError = err;
         });
 
-        await sleep(700);
+        await sleep(500);
         const dashboard = await waitForRunSync(
           authenticatedPayload.code,
           beforeCount,
           authenticatedPayload.clientRunId,
-          12
+          5
         );
         const syncedRuns = dashboard?.runs || [];
         if (dashboard?.employee && hasSyncedRun(syncedRuns, beforeCount, authenticatedPayload.clientRunId)) {
@@ -3242,15 +3242,16 @@
         };
         image.onload = () => {
           try {
-            const maxSize = 900;
+            const maxSize = 860;
             const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
             const canvas = document.createElement("canvas");
             canvas.width = Math.max(1, Math.round(image.width * scale));
             canvas.height = Math.max(1, Math.round(image.height * scale));
             const context = canvas.getContext("2d");
             context.drawImage(image, 0, 0, canvas.width, canvas.height);
-            let optimized = canvas.toDataURL("image/jpeg", 0.60);
-            if (optimized.length > 650000) optimized = canvas.toDataURL("image/jpeg", 0.48);
+            let optimized = canvas.toDataURL("image/jpeg", 0.54);
+            if (optimized.length > 300000) optimized = canvas.toDataURL("image/jpeg", 0.44);
+            if (optimized.length > 420000) optimized = canvas.toDataURL("image/jpeg", 0.36);
             finish(resolve, optimized);
           } catch (err) {
             originalImagePromise.then(
@@ -3479,11 +3480,13 @@
         renderDashboard();
         toast("ลงทะเบียนสำเร็จ เข้าสู่หน้าพนักงานแล้ว");
         setPage("dashboard");
-        refreshRegisteredDataSafely().then(() => {
-          renderStats();
-          renderLeaderboard();
-          renderDashboard();
-        });
+        window.setTimeout(() => {
+          refreshRegisteredDataSafely().then(() => {
+            renderStats();
+            renderLeaderboard();
+            renderDashboard();
+          });
+        }, 8000);
       } catch (err) {
         toast(getFriendlyErrorMessage(err));
       } finally {
@@ -3636,9 +3639,14 @@
       uploadStatus.style.display = "block";
       uploadStatus.textContent = "⏳ กำลังเตรียมข้อมูล กรุณารอ...";
       setRunUploadOverlay("loading", "กำลังบันทึกผล", "กรุณารอสักครู่ ไม่ต้องกดซ้ำ และอย่าปิดหน้านี้");
+      let optimisticSnapshot = null;
       const uploadProgressId = window.setInterval(() => {
         if (appState.runUploadToken !== uploadToken || !appState.isUploadingRun) return;
         const elapsedSeconds = Math.max(1, Math.round((Date.now() - appState.uploadStartedAt) / 1000));
+        if (optimisticSnapshot) {
+          uploadStatus.textContent = `✅ รับข้อมูลแล้ว ระบบกำลังบันทึกอัตโนมัติ ${elapsedSeconds} วินาที`;
+          return;
+        }
         const progressMessage = `ระบบกำลังส่งรูปและตรวจผล ${elapsedSeconds} วินาที กรุณารอต่ออีกนิด`;
         uploadStatus.textContent = `⏳ ${progressMessage}`;
         setRunUploadOverlay("loading", "กำลังบันทึกผล", progressMessage);
@@ -3655,32 +3663,38 @@
         toast("เน็ตหรือรูปใช้เวลานาน กดบันทึกอีกครั้งได้ ระบบจะไม่บันทึกซ้ำ");
       }, 240000);
       try {
-        if (pending?.id) {
-          uploadStatus.textContent = "⏳ กำลังตรวจสอบรายการก่อนหน้า...";
-          const syncedPending = await waitForRunSync(appState.currentUser.code, beforeCount, clientRunId, 6);
-          if (hasSyncedRun(syncedPending?.runs || [], beforeCount, clientRunId)) {
-            appState.currentUser = normalizeEmployeeRecord(syncedPending.employee);
-            appState.runs = syncedPending.runs || appState.runs;
-            saveCurrentUserSession(appState.currentUser);
-            upsertRegisteredUser(appState.currentUser);
-            renderStats();
-            renderLeaderboard();
-            renderDashboard();
-            event.target.reset();
-            resetRunUploadUi();
-            setRunUploadOverlay("success", "บันทึกสำเร็จแล้ว", `ระบบบันทึกระยะทาง ${fmt.format(distance)} กิโลเมตรเรียบร้อยแล้ว`);
-            toast("พบรายการที่บันทึกสำเร็จแล้ว ไม่บันทึกซ้ำ");
-            return;
-          }
-        }
         const imageData = file ? await withTimeout(
           getPreparedRunImageData(file),
           60000,
           "โทรศัพท์อ่านรูปไม่สำเร็จภายในเวลาที่กำหนด กรุณากดเปลี่ยนรูปแล้วเลือกรูปเดิมอีกครั้ง"
         ) : "";
         setButtonLoading(submitButton, true, "กำลังบันทึก...");
-        uploadStatus.textContent = "⏳ กำลังอัปโหลดและบันทึกผล...";
-        setRunUploadOverlay("loading", "กำลังส่งรูป", "รูปพร้อมแล้ว ระบบกำลังบันทึกข้อมูล กรุณารอสักครู่");
+        const previousUser = { ...appState.currentUser };
+        const previousRuns = [...appState.runs];
+        const optimisticTotal = Number(previousUser.total || 0) + distance;
+        const optimisticRun = {
+          id: clientRunId,
+          code: previousUser.code,
+          name: previousUser.name,
+          department: previousUser.department,
+          distance,
+          date: runDate,
+          note: note || "-",
+          imageUrl: imageData,
+          cumulative: optimisticTotal,
+          pending: true
+        };
+        optimisticSnapshot = { user: previousUser, runs: previousRuns };
+        appState.currentUser = normalizeEmployeeRecord({ ...previousUser, total: optimisticTotal });
+        appState.runs = [optimisticRun, ...previousRuns.filter(run => String(run.id || "") !== clientRunId)];
+        saveCurrentUserSession(appState.currentUser);
+        upsertRegisteredUser(appState.currentUser);
+        renderStats();
+        renderLeaderboard();
+        renderDashboard();
+        uploadStatus.textContent = "✅ รับรูปและข้อมูลแล้ว ระบบกำลังบันทึกให้อัตโนมัติ";
+        setRunUploadOverlay("success", "รับข้อมูลแล้ว", "ยอดและประวัติขึ้นแล้ว ระบบกำลังจัดเก็บข้อมูลและรูปให้อัตโนมัติ");
+        toast("รับข้อมูลแล้ว ระบบกำลังบันทึกอัตโนมัติ");
         const { employee, runs } = await api("addRun", {
           code: appState.currentUser.code,
           distance,
@@ -3693,6 +3707,7 @@
         });
         appState.currentUser = normalizeEmployeeRecord(employee);
         appState.runs = runs;
+        optimisticSnapshot = null;
         saveCurrentUserSession(appState.currentUser);
         upsertRegisteredUser(appState.currentUser);
         renderStats();
@@ -3708,6 +3723,16 @@
           renderDashboard();
         });
       } catch (err) {
+        if (optimisticSnapshot) {
+          appState.currentUser = normalizeEmployeeRecord(optimisticSnapshot.user);
+          appState.runs = optimisticSnapshot.runs;
+          saveCurrentUserSession(appState.currentUser);
+          upsertRegisteredUser(appState.currentUser);
+          renderStats();
+          renderLeaderboard();
+          renderDashboard();
+          optimisticSnapshot = null;
+        }
         uploadStatus.style.display = "block";
         if (/เซสชัน.*(?:หมดอายุ|ไม่ถูกต้อง)|เข้าสู่ระบบใหม่/i.test(err?.message || "")) {
           appState.currentUser = null;
