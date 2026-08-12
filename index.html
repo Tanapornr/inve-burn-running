@@ -653,6 +653,7 @@
     .run-step-badge { width: 34px; height: 34px; border-radius: 50%; display: inline-grid; place-items: center; flex: 0 0 auto; background: var(--navy); color: #fff; font-size: 17px; }
     .run-photo-area { grid-template-columns: 1fr; }
     .run-photo-ready { display: grid; grid-template-columns: 132px 1fr; gap: 16px; align-items: center; padding: 14px; border: 2px solid #9dddbb; border-radius: 16px; background: #f0fff6; }
+    .run-photo-ready.photo-error { grid-template-columns: 1fr; }
     .upload-preview { width: 132px; height: 102px; object-fit: cover; border-radius: 12px; border: 2px solid #fff; box-shadow: 0 8px 20px rgba(0,31,85,.12); }
     .upload-selected { color: #08783f; font-size: 18px; font-weight: 900; line-height: 1.45; }
     .run-change-photo { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; margin-top: 8px; padding: 0 16px; border: 1px solid #7993b8; border-radius: 10px; background: #fff; color: var(--navy); font-weight: 850; cursor: pointer; }
@@ -811,6 +812,7 @@
       .upload-box { min-height: 126px; padding: 16px 12px; }
       .upload-box strong { font-size: 19px; }
       .run-photo-ready { grid-template-columns: 96px minmax(0, 1fr); gap: 12px; padding: 12px; }
+      .run-photo-ready.photo-error { grid-template-columns: 1fr; }
       .upload-preview { width: 96px; height: 84px; }
       .upload-selected { font-size: 16px; }
       .run-submit-button { min-height: 64px; font-size: 20px; }
@@ -1607,25 +1609,39 @@
       const key = getRunImageKey(file);
       const prepared = {
         key,
+        memoryFile: null,
+        memoryPromise: null,
         dataUrl: "",
         error: null,
-        promise: withTimeout(
-          fileToOptimizedBase64(file),
+        promise: null
+      };
+      prepared.memoryPromise = withTimeout(
+        copyRunImageToMemory(file),
+        16000,
+        "โทรศัพท์ไม่อนุญาตให้อ่านรูป กรุณากดเปลี่ยนรูปแล้วเลือกอีกครั้ง"
+      );
+      prepared.promise = withTimeout(
+        prepared.memoryPromise.then(memoryFile => {
+          prepared.memoryFile = memoryFile;
+          return fileToOptimizedBase64(memoryFile);
+        }),
           24000,
           "เตรียมรูปไม่สำเร็จ กรุณาเลือกรูปใหม่ หรือแคปหน้าจอแล้วลองอีกครั้ง"
-        )
-      };
+      );
       appState.preparedRunImage = prepared;
       prepared.promise.then(dataUrl => {
-        if (appState.preparedRunImage?.key !== key) return;
+        if (appState.preparedRunImage !== prepared) return;
         prepared.dataUrl = dataUrl;
         const status = document.getElementById("runUploadStatus");
         if (status) status.textContent = "✅ รูปพร้อมบันทึกแล้ว";
       }, error => {
-        if (appState.preparedRunImage?.key !== key) return;
+        if (appState.preparedRunImage !== prepared) return;
         prepared.error = error;
         const status = document.getElementById("runUploadStatus");
-        if (status) status.textContent = "✅ เลือกรูปแล้ว กดบันทึกได้ ระบบจะลองส่งรูปต้นฉบับให้อัตโนมัติ";
+        if (status) status.textContent = "⚠️ โทรศัพท์ไม่อนุญาตให้อ่านรูปนี้ กรุณากดเปลี่ยนรูปแล้วเลือกอีกครั้ง";
+        document.getElementById("runPhotoReady")?.classList.add("photo-error");
+        const imageInput = document.getElementById("runImage");
+        if (imageInput) imageInput.value = "";
       });
       return prepared.promise;
     }
@@ -1634,16 +1650,8 @@
       const key = getRunImageKey(file);
       const prepared = appState.preparedRunImage?.key === key ? appState.preparedRunImage : null;
       if (prepared?.dataUrl) return prepared.dataUrl;
-      try {
-        return await (prepared?.promise || prepareRunImage(file));
-      } catch (error) {
-        await new Promise(resolve => window.setTimeout(resolve, 350));
-        return withTimeout(
-          fileToOriginalImageBase64(file, true),
-          45000,
-          "โทรศัพท์อ่านรูปไม่สำเร็จ กรุณากดเปลี่ยนรูปแล้วเลือกรูปอีกครั้ง"
-        );
-      }
+      if (prepared?.error) throw prepared.error;
+      return prepared?.promise || prepareRunImage(file);
     }
 
     function getFileExtension(file) {
@@ -1726,6 +1734,9 @@
       const message = err?.message || "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง";
       if (isNetworkError(err) || /โหลดระบบข้อมูล|เชื่อมต่อระบบข้อมูล|โหลดรายชื่อ|ตรวจสอบสิทธิ์|เชื่อมต่อระบบไม่ได้/i.test(message)) {
         return "เชื่อมต่อระบบไม่ได้ กรุณาตรวจสอบ Wi‑Fi หรือสลับเป็น 4G/5G แล้วลองใหม่";
+      }
+      if (/NotReadableError|requested file could not be read|permission problems|ไม่อนุญาตให้อ่านรูป|อ่านไฟล์รูป|อ่านข้อมูลรูป|การเลือกรูปถูกยกเลิก/i.test(message)) {
+        return "โทรศัพท์ยังไม่ส่งรูปให้ระบบ กรุณากดเปลี่ยนรูป แล้วเลือกรูปเดิมอีกครั้ง";
       }
       if (/รูปภาพไม่ถูกต้อง|invalid image|image/i.test(message)) {
         return "รูปหลักฐานอ่านไม่สำเร็จ กรุณาเลือกรูปใหม่ หรือแคปหน้าจอเป็น JPG/PNG แล้วลองอีกครั้ง";
@@ -3166,6 +3177,28 @@
       });
     }
 
+    function copyRunImageToMemory(file) {
+      return new Promise((resolve, reject) => {
+        const mimeType = getImageMimeFromFile(file);
+        if (!mimeType) {
+          reject(new Error("ไฟล์รูปไม่ถูกต้อง กรุณาเลือกรูป JPG, PNG, WEBP หรือ HEIC/HEIF"));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          const bytes = reader.result;
+          if (!(bytes instanceof ArrayBuffer) || !bytes.byteLength) {
+            reject(new Error("โทรศัพท์ส่งข้อมูลรูปมาไม่ครบ กรุณาเลือกรูปอีกครั้ง"));
+            return;
+          }
+          resolve(new Blob([bytes], { type: mimeType }));
+        };
+        reader.onerror = () => reject(reader.error || new Error("โทรศัพท์ไม่อนุญาตให้อ่านรูป กรุณาเลือกรูปอีกครั้ง"));
+        reader.onabort = () => reject(new Error("การเลือกรูปถูกยกเลิก กรุณาเลือกรูปอีกครั้ง"));
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
     function fileToArrayBuffer(file) {
       if (typeof file?.arrayBuffer === "function") return file.arrayBuffer();
       return new Promise((resolve, reject) => {
@@ -3222,10 +3255,8 @@
         }
         const image = new Image();
         let finished = false;
-        const originalImagePromise = fileToOriginalImageBase64(file);
-        originalImagePromise.catch(() => {});
         const decodeTimeoutId = window.setTimeout(() => {
-          originalImagePromise.then(
+          fileToOriginalImageBase64(file, true).then(
             dataUrl => finish(resolve, dataUrl),
             error => finish(reject, error)
           );
@@ -3254,14 +3285,14 @@
             if (optimized.length > 420000) optimized = canvas.toDataURL("image/jpeg", 0.36);
             finish(resolve, optimized);
           } catch (err) {
-            originalImagePromise.then(
+            fileToOriginalImageBase64(file, true).then(
               dataUrl => finish(resolve, dataUrl),
               error => finish(reject, error)
             );
           }
         };
         image.onerror = () => {
-          originalImagePromise.then(
+          fileToOriginalImageBase64(file, true).then(
             dataUrl => finish(resolve, dataUrl),
             error => finish(reject, error)
           );
@@ -3535,10 +3566,13 @@
       preview.src = "";
       document.getElementById("runUploadBox").style.display = "grid";
       document.getElementById("runPhotoReady").style.display = "none";
+      document.getElementById("runPhotoReady").classList.remove("photo-error");
       document.getElementById("runImage").value = "";
+      const status = document.getElementById("runUploadStatus");
+      if (status) status.textContent = "✅ เลือกรูปแล้ว";
     }
 
-    document.getElementById("runImage").addEventListener("change", event => {
+    document.getElementById("runImage").addEventListener("change", async event => {
       if (appState.isUploadingRun) {
         event.target.value = "";
         return toast("ระบบกำลังบันทึกผลอยู่ กรุณารอให้เสร็จก่อนเลือกรูปใหม่");
@@ -3560,18 +3594,30 @@
       }
       const preview = document.getElementById("runPreview");
       if (preview.dataset.objectUrl) URL.revokeObjectURL(preview.dataset.objectUrl);
-      const previewUrl = URL.createObjectURL(file);
-      preview.dataset.objectUrl = previewUrl;
-      preview.src = previewUrl;
-      preview.onerror = () => {
-        preview.style.display = "none";
-        document.getElementById("runUploadStatus").textContent = "⏳ กำลังเตรียมรูป...";
-      };
-      preview.style.display = "block";
       document.getElementById("runUploadBox").style.display = "none";
       document.getElementById("runPhotoReady").style.display = "grid";
-      document.getElementById("runUploadStatus").textContent = "⏳ เลือกรูปแล้ว กำลังเตรียมรูป...";
-      prepareRunImage(file);
+      document.getElementById("runUploadStatus").textContent = "⏳ กำลังรับรูปจากโทรศัพท์ กรุณารอสักครู่...";
+      const preparation = prepareRunImage(file);
+      const prepared = appState.preparedRunImage;
+      try {
+        const memoryFile = await prepared.memoryPromise;
+        if (appState.preparedRunImage !== prepared) return;
+        const previewUrl = URL.createObjectURL(memoryFile);
+        document.getElementById("runPhotoReady").classList.remove("photo-error");
+        preview.dataset.objectUrl = previewUrl;
+        preview.src = previewUrl;
+        preview.onerror = () => {
+          preview.style.display = "none";
+        };
+        preview.style.display = "block";
+        await preparation;
+      } catch (error) {
+        if (appState.preparedRunImage !== prepared) return;
+        preview.style.display = "none";
+        document.getElementById("runPhotoReady").classList.add("photo-error");
+        document.getElementById("runUploadStatus").textContent = "⚠️ โทรศัพท์ไม่อนุญาตให้อ่านรูปนี้ กรุณากดเปลี่ยนรูปแล้วเลือกอีกครั้ง";
+        toast(getFriendlyErrorMessage(error));
+      }
       restoreRunFormControls();
     });
 
