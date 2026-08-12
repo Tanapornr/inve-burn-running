@@ -25,7 +25,7 @@
     }
 
     * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     body {
       margin: 0;
       font-family: "Noto Sans Thai", system-ui, sans-serif;
@@ -126,7 +126,19 @@
     }
 
     .menu a.active { border-color: var(--orange); }
+    .mobile-menu-toggle {
+      display: none;
+      width: 44px;
+      height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      color: var(--navy);
+      font-size: 23px;
+      font-weight: 900;
+    }
     .nav-actions { display: flex; align-items: center; gap: 16px; }
+    [hidden] { display: none !important; }
     .btn {
       display: inline-flex;
       align-items: center;
@@ -886,6 +898,94 @@
         min-width: 0;
       }
     }
+
+    @media (max-width: 820px) {
+      .container { width: calc(100% - 20px); }
+      .topbar { height: auto; min-height: 68px; padding: 8px 0; }
+      .topbar .container { width: calc(100% - 20px); }
+      .nav {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px 10px;
+        align-items: center;
+      }
+      .brand { min-width: 0; gap: 8px; }
+      .brand-logo { width: 42px; height: 42px; }
+      .brand-text { font-size: clamp(16px, 4.5vw, 20px); line-height: .96; white-space: nowrap; }
+      .brand-text small { font-size: clamp(14px, 4vw, 18px); }
+      .mobile-menu-toggle { display: inline-grid; place-items: center; grid-column: 2; grid-row: 1; }
+      .menu,
+      .nav-actions { display: none !important; grid-column: 1 / -1; width: 100%; }
+      .topbar.menu-open .menu {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        order: initial;
+        gap: 2px;
+        padding: 8px;
+        overflow: visible;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #f8fbff;
+        box-shadow: 0 12px 28px rgba(0,31,85,.10);
+      }
+      .topbar.menu-open .menu a {
+        padding: 12px 13px;
+        border: 0;
+        border-radius: 10px;
+        font-size: 15px;
+        white-space: normal;
+      }
+      .topbar.menu-open .menu a.active { background: #fff1eb; color: var(--orange); }
+      .topbar.menu-open .menu a:last-child { grid-column: 1 / -1; }
+      .topbar.menu-open .nav-actions:not([hidden]) { display: flex !important; }
+      .nav-actions { gap: 8px; padding: 2px 0 4px; }
+      .nav-actions .btn { min-height: 44px; padding: 0 12px; font-size: 14px; }
+      .topbar.menu-open .user-mini:not([hidden]) {
+        display: grid !important;
+        grid-template-columns: 44px minmax(0, 1fr);
+        align-items: center;
+        gap: 8px 10px;
+      }
+      .user-mini .avatar { width: 44px; height: 44px; grid-column: 1; grid-row: 1; }
+      .user-mini > div { min-width: 0; grid-column: 2; grid-row: 1; }
+      .user-mini > div strong,
+      .user-mini > div small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .user-mini > .btn { min-width: 0; }
+      .user-mini > .btn:nth-of-type(1),
+      .user-mini > .btn:nth-of-type(2) { grid-column: 1 / -1; width: 100%; }
+      .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .stat-card { min-height: 100px; padding: 13px 12px; gap: 10px; border-radius: 15px; }
+      .stat-card > div:last-child { min-width: 0; }
+      .stat-card b { font-size: 13px; line-height: 1.25; }
+      .stat-card small { font-size: 11px; line-height: 1.25; }
+      .stat-value { font-size: 23px; line-height: 1.15; }
+      .icon-circle { width: 48px; height: 48px; font-size: 22px; flex: 0 0 48px; }
+      .hero h1 { font-size: clamp(31px, 10vw, 44px); }
+      .admin-layout { display: block; }
+      .admin-sidebar {
+        position: sticky;
+        top: 68px;
+        z-index: 20;
+        display: block;
+        padding: 8px 10px;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+      .admin-sidebar::-webkit-scrollbar { display: none; }
+      .admin-sidebar > .brand,
+      .admin-sidebar > div:last-child { display: none; }
+      .admin-nav { display: flex; gap: 7px; width: max-content; }
+      .admin-tab { min-width: max-content; min-height: 42px; padding: 0 13px; border-radius: 9px; font-size: 14px; }
+      .admin-main { padding: 18px 12px 76px; }
+      .admin-top { align-items: flex-start; margin-bottom: 16px; }
+      .admin-top .user-mini { display: none !important; }
+    }
+
+    @media (max-width: 390px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .brand-text { font-size: 16px; }
+      .brand-text small { font-size: 14px; }
+    }
   </style>
 </head>
 <body>
@@ -895,7 +995,8 @@
         <img class="brand-logo" src="assets/inve-logo.svg" alt="INVE logo">
         <span class="brand-text">INVE <span>BURN</span><small>RUNNING 2026</small></span>
       </a>
-      <nav class="menu">
+      <button class="mobile-menu-toggle" id="mobileMenuToggle" type="button" aria-label="เปิดเมนู" aria-expanded="false" aria-controls="mainMenu">☰</button>
+      <nav class="menu" id="mainMenu">
         <a href="#home" class="active" data-page-link="home">⌂ หน้าแรก</a>
         <a href="#ranking" data-page-link="ranking">อันดับ</a>
         <a href="#about" data-page-link="about">เกี่ยวกับกิจกรรม</a>
@@ -906,7 +1007,7 @@
         <button class="btn btn-outline" data-page-link="register">♙ ลงทะเบียน</button>
         <button class="btn btn-navy" data-page-link="login">↪ เข้าสู่ระบบ</button>
       </div>
-      <div class="nav-actions user-mini" id="userActions" style="display:none">
+      <div class="nav-actions user-mini" id="userActions" hidden>
         <img class="avatar" id="navAvatar" alt="รูปผู้ใช้" data-profile-upload style="cursor:pointer" />
         <div data-page-link="dashboard" style="cursor:pointer">
           <strong id="navName">ผู้ใช้งาน</strong><br>
@@ -1144,6 +1245,7 @@
             <small class="helper">ลืมรหัสผ่าน กรุณาติดต่อแอดมิน</small>
           </div>
           <button class="btn btn-navy" id="loginSubmitBtn" type="submit" style="width:100%;margin-top:24px">↪ เข้าสู่ระบบ</button>
+          <div class="helper" id="loginStatus" role="status" aria-live="polite" style="display:none;margin-top:12px;text-align:center;font-weight:800"></div>
           <hr class="divider">
           <p style="margin:0;text-align:center">ยังไม่มีบัญชี? <a class="muted-link" href="#register" data-page-link="register">ลงทะเบียน</a></p>
         </form>
@@ -1450,10 +1552,12 @@
     };
     const CURRENT_USER_KEY = "inveBurnCurrentUser";
     const SESSION_TOKEN_KEY = "inveBurnSessionToken";
+    const LAST_ACTIVITY_KEY = "inveBurnLastActivity";
     const PROFILE_PHOTOS_KEY = "inveBurnProfilePhotos";
     const DASHBOARD_CACHE_KEY = "inveBurnDashboardCache";
     const EMPLOYEES_CACHE_KEY = "inveBurnEmployeesCache";
     const CACHE_TTL = 6 * 60 * 60 * 1000;
+    const INACTIVITY_LIMIT_MS = 15 * 60 * 1000;
     const GOAL_DISTANCES = [10, 20];
     const HOME_LEADERBOARD_PAGE_SIZE = 10;
     const ADMIN_GOAL_RANKING_PAGE_SIZE = 10;
@@ -1503,6 +1607,7 @@
       runUploadToken: "",
       sessionToken: "",
       isAdmin: false,
+      adminLastActivity: 0,
       homeLeaderboardPages: {},
       adminGoalRankingPages: {},
       rankingFilter: { period: "all", department: "", query: "" },
@@ -1512,6 +1617,8 @@
     };
     let refreshInFlight = false;
     let refreshTimer = null;
+    let inactivityTimer = null;
+    let lastActivityWriteAt = 0;
 
     const fmt = new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const intFmt = new Intl.NumberFormat("th-TH");
@@ -1544,6 +1651,27 @@
       admin: "admin"
     };
     const HASH_PAGES = Object.fromEntries(Object.entries(PAGE_HASHES).map(([page, hash]) => [hash, page]));
+
+    function closeMobileMenu() {
+      const topbar = document.querySelector(".topbar");
+      const toggle = document.getElementById("mobileMenuToggle");
+      topbar?.classList.remove("menu-open");
+      if (toggle) {
+        toggle.setAttribute("aria-expanded", "false");
+        toggle.textContent = "☰";
+        toggle.setAttribute("aria-label", "เปิดเมนู");
+      }
+    }
+
+    function toggleMobileMenu() {
+      const topbar = document.querySelector(".topbar");
+      const toggle = document.getElementById("mobileMenuToggle");
+      if (!topbar || !toggle) return;
+      const isOpen = topbar.classList.toggle("menu-open");
+      toggle.setAttribute("aria-expanded", String(isOpen));
+      toggle.textContent = isOpen ? "×" : "☰";
+      toggle.setAttribute("aria-label", isOpen ? "ปิดเมนู" : "เปิดเมนู");
+    }
 
     function toast(message) {
       const el = document.getElementById("toast");
@@ -1897,14 +2025,19 @@
 
         const script = document.createElement("script");
         const timeoutId = window.setTimeout(() => {
-          cleanup();
+          cleanup(true);
           reject(new Error("เชื่อมต่อระบบข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง"));
         }, 9000);
 
-        function cleanup() {
+        function cleanup(keepLateCallback = false) {
           window.clearTimeout(timeoutId);
           script.remove();
-          delete window[callbackName];
+          if (keepLateCallback) {
+            window[callbackName] = () => {};
+            window.setTimeout(() => delete window[callbackName], 60000);
+          } else {
+            delete window[callbackName];
+          }
         }
 
         window[callbackName] = data => {
@@ -2099,19 +2232,73 @@
     function restoreCurrentUserSession() {
       try {
         const user = JSON.parse(localStorage.getItem(CURRENT_USER_KEY) || "null");
-        if (user?.code) {
+        const sessionToken = localStorage.getItem(SESSION_TOKEN_KEY) || "";
+        const lastActivity = Number(localStorage.getItem(LAST_ACTIVITY_KEY) || 0);
+        if (user?.code && sessionToken && (!lastActivity || Date.now() - lastActivity < INACTIVITY_LIMIT_MS)) {
           appState.currentUser = normalizeEmployeeRecord(user);
-          appState.sessionToken = localStorage.getItem(SESSION_TOKEN_KEY) || "";
+          appState.sessionToken = sessionToken;
+          if (!lastActivity) localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()));
+        } else if (user?.code || sessionToken) {
+          clearCurrentUserSession();
         }
       } catch (err) {
-        localStorage.removeItem(CURRENT_USER_KEY);
+        clearCurrentUserSession();
       }
     }
 
     function clearCurrentUserSession() {
       localStorage.removeItem(CURRENT_USER_KEY);
       localStorage.removeItem(SESSION_TOKEN_KEY);
+      localStorage.removeItem(LAST_ACTIVITY_KEY);
       appState.sessionToken = "";
+    }
+
+    function markUserActivity(force = false) {
+      const now = Date.now();
+      if (appState.isAdmin) appState.adminLastActivity = now;
+      if (!isUserAuthenticated()) return;
+      if (!force && now - lastActivityWriteAt < 15000) return;
+      lastActivityWriteAt = now;
+      localStorage.setItem(LAST_ACTIVITY_KEY, String(now));
+    }
+
+    function performUserLogout(message = "ออกจากระบบแล้ว") {
+      appState.currentUser = null;
+      appState.runs = [];
+      clearCurrentUserSession();
+      resetRunUploadUi();
+      closeMobileMenu();
+      updateAuthUi();
+      setPage("home");
+      if (message) toast(message);
+    }
+
+    function checkUserInactivity() {
+      const now = Date.now();
+      if (appState.isAdmin && appState.adminLastActivity && now - appState.adminLastActivity >= INACTIVITY_LIMIT_MS) {
+        appState.isAdmin = false;
+        appState.adminLastActivity = 0;
+        closeMobileMenu();
+        setPage("adminLogin");
+        toast("ออกจากระบบผู้ดูแลอัตโนมัติ เนื่องจากไม่มีการใช้งานเกิน 15 นาที");
+      }
+      if (!isUserAuthenticated() || appState.isUploadingRun) return;
+      const lastActivity = Number(localStorage.getItem(LAST_ACTIVITY_KEY) || 0);
+      if (!lastActivity || now - lastActivity >= INACTIVITY_LIMIT_MS) {
+        performUserLogout("ออกจากระบบอัตโนมัติ เนื่องจากไม่มีการใช้งานเกิน 15 นาที");
+      }
+    }
+
+    function startUserInactivityTracking() {
+      if (inactivityTimer) return;
+      ["pointerdown", "keydown", "touchstart", "scroll"].forEach(eventName => {
+        window.addEventListener(eventName, () => markUserActivity(), { passive: true });
+      });
+      inactivityTimer = window.setInterval(checkUserInactivity, 30000);
+    }
+
+    function isUserAuthenticated() {
+      return Boolean(appState.currentUser?.code && appState.sessionToken);
     }
 
     function readProfilePhotos() {
@@ -2280,19 +2467,16 @@
       appState.allRegisteredUsers = registered.sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
       appState.registeredUsers = appState.allRegisteredUsers.slice(0, 10);
       appState.allRuns = runs;
-      if (appState.currentUser) {
+      if (isUserAuthenticated()) {
         const latestUser = appState.allRegisteredUsers.find(user => codeMatches(user.code, appState.currentUser.code));
-        if (!latestUser) {
-          appState.currentUser = null;
-          appState.runs = runs;
-          clearCurrentUserSession();
-          updateAuthUi();
-          return appState.registeredUsers;
+        if (latestUser) {
+          const refreshed = buildLoginResultFromUser({ ...appState.currentUser, ...latestUser }, runs);
+          appState.currentUser = refreshed.employee;
+          appState.runs = refreshed.runs;
+          saveCurrentUserSession(appState.currentUser);
+        } else {
+          appState.runs = runs.filter(run => codeMatches(run.code, appState.currentUser.code));
         }
-        const refreshed = buildLoginResultFromUser({ ...appState.currentUser, ...latestUser }, runs);
-        appState.currentUser = refreshed.employee;
-        appState.runs = refreshed.runs;
-        saveCurrentUserSession(appState.currentUser);
       } else {
         appState.runs = runs;
       }
@@ -2349,17 +2533,9 @@
       });
       applyRegisteredData(dashboard.leaderboard || [], dashboard.runs || []);
 
-      if (appState.currentUser?.code) {
-        const latestUser = findRegisteredUser(appState.currentUser.code);
-        if (!latestUser) {
-          appState.currentUser = null;
-          appState.runs = [];
-          clearCurrentUserSession();
-          updateAuthUi();
-          return appState.registeredUsers;
-        }
-
+      if (isUserAuthenticated()) {
         try {
+          const latestUser = findRegisteredUser(appState.currentUser.code);
           const userDashboard = await fetchDashboardData({ code: appState.currentUser.code });
           appState.currentUser = normalizeEmployeeRecord(userDashboard.employee || { ...appState.currentUser, ...latestUser });
           appState.runs = userDashboard.runs || appState.runs || [];
@@ -2914,16 +3090,18 @@
 
     function setPage(page, options = {}) {
       if (!document.getElementById(`${page}Page`)) page = "home";
-      if (page === "dashboard" && !appState.currentUser?.code) {
+      if (["login", "register"].includes(page) && isUserAuthenticated()) page = "dashboard";
+      if (page === "dashboard" && !isUserAuthenticated()) {
         restoreCurrentUserSession();
       }
-      if (page === "dashboard" && !appState.currentUser?.code) {
+      if (page === "dashboard" && !isUserAuthenticated()) {
         appState.currentUser = null;
         clearCurrentUserSession();
         updateAuthUi();
         toast("กรุณาเข้าสู่ระบบก่อนใช้งาน");
         page = "login";
       }
+      if (page === "admin" && !appState.isAdmin) page = "adminLogin";
       if (page === "dashboard") {
         updateAuthUi();
         renderDashboard();
@@ -2946,6 +3124,7 @@
         window.setTimeout(showRegistrationWindowModal, 120);
       }
       if (!options.skipRefresh) refreshLiveData();
+      closeMobileMenu();
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
@@ -2956,7 +3135,7 @@
         await loadRegisteredData();
         renderStats();
         renderLeaderboard();
-        if (appState.currentUser) {
+        if (isUserAuthenticated()) {
           updateAuthUi();
           renderDashboard();
         }
@@ -2975,10 +3154,11 @@
     }
 
     function updateAuthUi() {
-      const user = appState.currentUser;
-      document.getElementById("guestActions").style.display = user ? "none" : "flex";
-      document.getElementById("userActions").style.display = user ? "flex" : "none";
-      if (!user) return;
+      const authenticated = isUserAuthenticated();
+      const user = authenticated ? appState.currentUser : null;
+      document.getElementById("guestActions").hidden = authenticated;
+      document.getElementById("userActions").hidden = !authenticated;
+      if (!authenticated) return;
       document.getElementById("navName").textContent = user.name;
       document.getElementById("navCode").textContent = `รหัสพนักงาน ${user.code}`;
       document.getElementById("navAvatar").src = getAvatarSrc(user);
@@ -3393,7 +3573,7 @@
       const profileTrigger = event.target.closest("[data-profile-upload]");
       if (profileTrigger) {
         event.preventDefault();
-        if (!appState.currentUser?.code) return toast("กรุณาเข้าสู่ระบบก่อนเปลี่ยนรูปโปรไฟล์");
+        if (!isUserAuthenticated()) return toast("กรุณาเข้าสู่ระบบก่อนเปลี่ยนรูปโปรไฟล์");
         document.getElementById("profilePhotoInput").click();
         return;
       }
@@ -3402,6 +3582,8 @@
       event.preventDefault();
       setPage(link.dataset.pageLink);
     });
+
+    document.getElementById("mobileMenuToggle").addEventListener("click", toggleMobileMenu);
 
     document.addEventListener("keydown", event => {
       if (event.key === "Escape") {
@@ -3420,7 +3602,7 @@
     document.getElementById("profilePhotoInput").addEventListener("change", async event => {
       const file = event.target.files[0];
       if (!file) return;
-      if (!appState.currentUser?.code) {
+      if (!isUserAuthenticated()) {
         event.target.value = "";
         return toast("\u0e01\u0e23\u0e38\u0e13\u0e32\u0e40\u0e02\u0e49\u0e32\u0e2a\u0e39\u0e48\u0e23\u0e30\u0e1a\u0e1a\u0e01\u0e48\u0e2d\u0e19\u0e40\u0e1b\u0e25\u0e35\u0e48\u0e22\u0e19\u0e23\u0e39\u0e1b\u0e42\u0e1b\u0e23\u0e44\u0e1f\u0e25\u0e4c");
       }
@@ -3500,10 +3682,12 @@
         };
         const { employee, sessionToken } = await api("register", payload);
         if (!employee) throw new Error("ระบบข้อมูลยังไม่พร้อม กรุณาลองสมัครใหม่อีกครั้ง");
+        if (!sessionToken) throw new Error("ลงทะเบียนแล้วแต่ยังไม่ได้สิทธิ์เข้าสู่ระบบ กรุณาเข้าสู่ระบบอีกครั้ง");
         appState.currentUser = normalizeEmployeeRecord(employee);
         appState.sessionToken = sessionToken || "";
         appState.runs = [];
         saveCurrentUserSession(appState.currentUser, appState.sessionToken);
+        markUserActivity(true);
         upsertRegisteredUser(appState.currentUser);
         updateAuthUi();
         renderStats();
@@ -3528,26 +3712,40 @@
     document.getElementById("loginForm").addEventListener("submit", async event => {
       event.preventDefault();
       const submitButton = event.target.querySelector("button[type='submit']");
+      const loginStatus = document.getElementById("loginStatus");
       setButtonLoading(submitButton, true, "กำลังเข้าสู่ระบบ...");
+      loginStatus.style.display = "block";
+      loginStatus.style.color = "#52627d";
+      loginStatus.textContent = "⏳ กำลังตรวจสอบบัญชี กรุณารอสักครู่...";
       toast("กำลังเข้าสู่ระบบ กรุณารอสักครู่");
+      const loginSlowTimer = window.setTimeout(() => {
+        loginStatus.textContent = "⏳ ระบบกำลังเชื่อมต่อข้อมูล กรุณารอต่ออีกเล็กน้อย...";
+      }, 8000);
       try {
         const { employee, runs, sessionToken } = await api("login", {
           code: document.getElementById("loginCode").value,
           password: document.getElementById("loginPassword").value
         });
         if (!employee) throw new Error("ระบบข้อมูลยังไม่พร้อม กรุณาลองเข้าสู่ระบบใหม่อีกครั้ง");
+        if (!sessionToken) throw new Error("ระบบไม่ได้ส่งสิทธิ์เข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง");
         appState.currentUser = normalizeEmployeeRecord(employee);
         appState.sessionToken = sessionToken || "";
         appState.runs = runs || appState.runs;
         saveCurrentUserSession(appState.currentUser, appState.sessionToken);
+        markUserActivity(true);
         upsertRegisteredUser(appState.currentUser);
         updateAuthUi();
         renderDashboard();
+        loginStatus.style.color = "#08783f";
+        loginStatus.textContent = "✅ เข้าสู่ระบบสำเร็จ กำลังเปิดหน้าโปรไฟล์...";
         setPage("dashboard");
         toast("เข้าสู่ระบบสำเร็จ");
       } catch (err) {
+        loginStatus.style.color = "#c5281c";
+        loginStatus.textContent = `❌ ${getFriendlyErrorMessage(err)}`;
         toast(getFriendlyErrorMessage(err));
       } finally {
+        window.clearTimeout(loginSlowTimer);
         setButtonLoading(submitButton, false);
       }
     });
@@ -3640,7 +3838,7 @@
         }
         return toast("ระบบกำลังบันทึกผล กรุณารอสักครู่");
       }
-      if (!appState.currentUser?.code) {
+      if (!isUserAuthenticated()) {
         appState.currentUser = null;
         clearCurrentUserSession();
         updateAuthUi();
@@ -3820,6 +4018,7 @@
         return toast("ชื่อผู้ใช้หรือรหัสผ่านแอดมินไม่ถูกต้อง");
       }
       appState.isAdmin = true;
+      appState.adminLastActivity = Date.now();
       renderAdmin();
       setPage("admin");
       toast("เข้าสู่ระบบผู้ดูแลสำเร็จ");
@@ -3863,20 +4062,20 @@
     document.getElementById("adminEmployeeFilter").addEventListener("change", renderAdminEmployees);
     document.getElementById("adminLogout").addEventListener("click", () => {
       appState.isAdmin = false;
+      appState.adminLastActivity = 0;
+      closeMobileMenu();
       setPage("adminLogin");
       toast("ออกจากระบบผู้ดูแลแล้ว");
     });
     document.getElementById("logoutBtn").addEventListener("click", () => {
-      appState.currentUser = null;
-      clearCurrentUserSession();
-      updateAuthUi();
-      setPage("home");
-      toast("ออกจากระบบแล้ว");
+      performUserLogout("ออกจากระบบแล้ว");
     });
 
     async function init() {
       document.getElementById("runDate").valueAsDate = new Date();
       restoreCurrentUserSession();
+      updateAuthUi();
+      startUserInactivityTracking();
       renderDistanceOptions();
       updateRegistrationWindowUi();
       const hasDashboardCache = hydrateDashboardFromCache();
@@ -3908,7 +4107,10 @@
       setPage(getPageFromHash(), { updateHash: false, skipRefresh: true });
       startRealtimeUpdates();
       document.addEventListener("visibilitychange", () => {
-        if (!document.hidden) refreshLiveData();
+        if (!document.hidden) {
+          checkUserInactivity();
+          refreshLiveData();
+        }
       });
       window.addEventListener("online", refreshLiveData);
       window.addEventListener("beforeunload", event => {
