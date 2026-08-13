@@ -1845,6 +1845,14 @@
     }
 
     async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+      if (typeof AbortController === "undefined") {
+        return Promise.race([
+          fetch(url, options),
+          new Promise((resolve, reject) => {
+            window.setTimeout(() => reject(new Error("timeout")), timeoutMs);
+          })
+        ]);
+      }
       const controller = new AbortController();
       const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
       try {
@@ -1925,7 +1933,11 @@
         return { ok: true, employee };
       }
       if (action === "login") {
-        return apiProxy(action, payload, 30000);
+        return apiProxy(action, {
+          ...payload,
+          code: normalizeCode(payload.code || payload.employeeCode),
+          password: String(payload.password || "").trim()
+        }, 65000);
       }
       if (action === "updateProfilePhoto") {
         return apiProxy(action, { ...payload, sessionToken: appState.sessionToken }, 30000);

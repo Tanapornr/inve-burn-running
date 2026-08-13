@@ -1,5 +1,14 @@
 ﻿const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyEIQPcHNrlYDqCJCMhGuZzO_RBrtrpIBaBuFvdECmP_ZzDsmsgaTy0-GYCEPh9yMYNVQ/exec";
 
+const RETRY_SAFE_ACTIONS = new Set([
+  "login",
+  "lookupEmployee",
+  "listEmployees",
+  "getDashboard",
+  "getRunStatus",
+  "systemCheck"
+]);
+
 function friendlyMessage(message) {
   const text = String(message || "");
   if (/AbortError|aborted|timeout|timed out/i.test(text)) {
@@ -34,6 +43,44 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 25000) {
   }
 }
 
+function hasExpectedPayload(action, data) {
+  if (!data || typeof data !== "object" || typeof data.ok !== "boolean") return false;
+  if (!data.ok) return true;
+  if (action === "login") return Boolean(data.employee && data.employee.code && data.sessionToken);
+  if (action === "lookupEmployee") return Boolean(data.employee && data.employee.code);
+  if (action === "listEmployees") return Array.isArray(data.employees);
+  if (action === "getDashboard") {
+    return Array.isArray(data.leaderboard) && data.stats && Array.isArray(data.runs);
+  }
+  if (action === "getRunStatus") return typeof data.found === "boolean";
+  return true;
+}
+
+async function requestAppsScript(payload, timeoutMs) {
+  const upstream = await fetchWithTimeout(SCRIPT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(payload),
+    redirect: "follow"
+  }, timeoutMs);
+
+  const responseText = await upstream.text();
+  let data;
+  try {
+    data = JSON.parse(responseText);
+  } catch (err) {
+    const invalidResponse = new Error("Apps Script ตอบกลับไม่ถูกต้อง กรุณาลองใหม่");
+    invalidResponse.retryable = true;
+    throw invalidResponse;
+  }
+  if (!hasExpectedPayload(payload.action, data)) {
+    const invalidPayload = new Error("Apps Script ตอบกลับไม่ครบถ้วน กรุณาลองใหม่");
+    invalidPayload.retryable = true;
+    throw invalidPayload;
+  }
+  return { upstream, data };
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let body = "";
@@ -66,6 +113,9 @@ module.exports = async function handler(req, res) {
     const rawBody = await readBody(req);
     const payload = rawBody ? JSON.parse(rawBody) : {};
     if (!payload.action) throw new Error("ไม่พบ action ที่ร้องขอ");
+    if (payload.action === "login" && /^[a-f0-9]{64}$/i.test(String(payload.password || "").trim())) {
+      throw new Error("รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง");
+    }
     console.log(JSON.stringify({
       event: "apps-script-request",
       requestId,
@@ -74,20 +124,30 @@ module.exports = async function handler(req, res) {
       bodyBytes: Buffer.byteLength(rawBody, "utf8")
     }));
 
-    const upstream = await fetchWithTimeout(SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload),
-      redirect: "follow"
-    }, 50000);
-
-    const text = await upstream.text();
+    const maxAttempts = RETRY_SAFE_ACTIONS.has(payload.action) ? 2 : 1;
+    let upstream;
     let data;
-    try {
-      data = JSON.parse(text);
-    } catch (err) {
-      throw new Error("Apps Script ตอบกลับไม่ถูกต้อง กรุณา deploy เวอร์ชันล่าสุด");
+    let upstreamError;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        ({ upstream, data } = await requestAppsScript(payload, maxAttempts > 1 ? 26000 : 50000));
+        upstreamError = null;
+        break;
+      } catch (err) {
+        upstreamError = err;
+        const canRetry = attempt < maxAttempts
+          && (err.retryable || /AbortError|aborted|timeout/i.test(String(err && err.message)));
+        if (!canRetry) throw err;
+        console.warn(JSON.stringify({
+          event: "apps-script-retry",
+          requestId,
+          action: payload.action,
+          attempt,
+          message: String(err && err.message ? err.message : err)
+        }));
+      }
     }
+    if (upstreamError) throw upstreamError;
     if (data && data.ok === false) {
       data.message = friendlyMessage(data.message);
     }

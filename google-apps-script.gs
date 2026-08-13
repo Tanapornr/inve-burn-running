@@ -171,7 +171,7 @@ function register(body) {
 
 function login(body) {
   const code = normalizeCode_(body.code || body.employeeCode);
-  const password = String(body.password || '');
+  const password = String(body.password || '').trim();
   const user = findUser_(code);
 
   if (!user || !passwordMatches_(user.passwordHash, password)) {
@@ -803,8 +803,14 @@ function saveImageFile_(imageData, fileInfo) {
 function passwordMatches_(storedPassword, password) {
   const storedText = String(storedPassword || '').trim();
   const plainText = String(password || '');
+  const trimmedText = plainText.trim();
   if (!storedText || !plainText) return false;
-  return storedText.toLowerCase() === hashPassword_(plainText) || storedText === plainText;
+  if (/^[a-f0-9]{64}$/i.test(storedText)) {
+    return storedText.toLowerCase() === hashPassword_(plainText)
+      || (trimmedText !== plainText && storedText.toLowerCase() === hashPassword_(trimmedText));
+  }
+  return safeTextEquals_(storedText, plainText)
+    || (trimmedText !== plainText && safeTextEquals_(storedText, trimmedText));
 }
 
 function upgradePlainPasswordIfNeeded_(code, storedPassword, password) {
