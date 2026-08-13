@@ -1,5 +1,7 @@
 ﻿const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyEIQPcHNrlYDqCJCMhGuZzO_RBrtrpIBaBuFvdECmP_ZzDsmsgaTy0-GYCEPh9yMYNVQ/exec";
 
+const PROXY_VERSION = "2026-08-13-login-retry-v2";
+
 const RETRY_SAFE_ACTIONS = new Set([
   "login",
   "lookupEmployee",
@@ -11,6 +13,9 @@ const RETRY_SAFE_ACTIONS = new Set([
 
 function friendlyMessage(message) {
   const text = String(message || "");
+  if (/Apps Script.*(?:ตอบกลับไม่ถูกต้อง|ตอบกลับไม่ครบถ้วน)/i.test(text)) {
+    return "ระบบ Google ขัดข้องชั่วคราวและยังไม่ได้ตรวจรหัสผ่าน กรุณารอประมาณ 10 วินาทีแล้วลองอีกครั้ง";
+  }
   if (/AbortError|aborted|timeout|timed out/i.test(text)) {
     return "เชื่อมต่อระบบช้าเกินไป กรุณาตรวจสอบ Wi‑Fi หรือสลับเป็น 4G/5G แล้วลองใหม่";
   }
@@ -30,6 +35,7 @@ function sendJson(res, status, data) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("X-INVE-Proxy-Version", PROXY_VERSION);
   res.end(JSON.stringify(data));
 }
 
@@ -56,21 +62,55 @@ function hasExpectedPayload(action, data) {
   return true;
 }
 
-async function requestAppsScript(payload, timeoutMs) {
-  const upstream = await fetchWithTimeout(SCRIPT_URL, {
+async function requestAppsScript(payload, timeoutMs, attemptId = "1") {
+  const deadline = Date.now() + timeoutMs;
+  const requestUrl = new URL(SCRIPT_URL);
+  requestUrl.searchParams.set("source", "vercel");
+  requestUrl.searchParams.set("attempt", attemptId);
+  requestUrl.searchParams.set("_", `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+
+  const remainingTime = () => Math.max(1000, deadline - Date.now());
+  let upstream = await fetchWithTimeout(requestUrl.toString(), {
     method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8",
+      "Accept": "application/json, text/plain, */*",
+      "Cache-Control": "no-cache",
+      "Pragma": "no-cache"
+    },
     body: JSON.stringify(payload),
-    redirect: "follow"
-  }, timeoutMs);
+    redirect: "manual",
+    cache: "no-store"
+  }, remainingTime());
+
+  if ([301, 302, 303, 307, 308].includes(upstream.status)) {
+    const location = upstream.headers.get("location");
+    if (!location) {
+      const redirectError = new Error("Apps Script ตอบกลับไม่ถูกต้อง กรุณาลองใหม่");
+      redirectError.retryable = true;
+      throw redirectError;
+    }
+    upstream = await fetchWithTimeout(new URL(location, requestUrl).toString(), {
+      method: "GET",
+      headers: {
+        "Accept": "application/json, text/plain, */*",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache"
+      },
+      redirect: "follow",
+      cache: "no-store"
+    }, remainingTime());
+  }
 
   const responseText = await upstream.text();
   let data;
   try {
-    data = JSON.parse(responseText);
+    data = JSON.parse(responseText.replace(/^\uFEFF/, "").trim());
   } catch (err) {
     const invalidResponse = new Error("Apps Script ตอบกลับไม่ถูกต้อง กรุณาลองใหม่");
     invalidResponse.retryable = true;
+    invalidResponse.upstreamStatus = upstream.status;
+    invalidResponse.upstreamType = upstream.headers.get("content-type") || "";
     throw invalidResponse;
   }
   if (!hasExpectedPayload(payload.action, data)) {
@@ -85,24 +125,28 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function requestLoginWithHedge(payload) {
-  let completed = false;
-  const primary = requestAppsScript(payload, 48000);
-  const secondary = sleep(5000).then(() => {
-    if (completed) return new Promise(() => {});
-    return requestAppsScript(payload, 43000);
-  });
-  try {
-    const result = await Promise.any([primary, secondary]);
-    completed = true;
-    return result;
-  } catch (err) {
-    completed = true;
-    if (err && Array.isArray(err.errors) && err.errors.length) {
-      throw err.errors[err.errors.length - 1];
+async function requestLoginWithRetry(payload, requestId) {
+  const attemptTimeouts = [14000, 17000, 20000];
+  let lastError;
+  for (let index = 0; index < attemptTimeouts.length; index += 1) {
+    try {
+      return await requestAppsScript(payload, attemptTimeouts[index], `login-${index + 1}`);
+    } catch (err) {
+      lastError = err;
+      const retryable = err && (err.retryable || /AbortError|aborted|timeout/i.test(String(err.message || err)));
+      if (!retryable || index === attemptTimeouts.length - 1) throw err;
+      console.warn(JSON.stringify({
+        event: "apps-script-login-retry",
+        requestId,
+        attempt: index + 1,
+        upstreamStatus: err.upstreamStatus || 0,
+        upstreamType: err.upstreamType || "",
+        message: String(err.message || err)
+      }));
+      await sleep(350 + (index * 350));
     }
-    throw err;
   }
+  throw lastError;
 }
 
 function readBody(req) {
@@ -153,12 +197,12 @@ module.exports = async function handler(req, res) {
     let data;
     let upstreamError;
     if (payload.action === "login") {
-      ({ upstream, data } = await requestLoginWithHedge(payload));
+      ({ upstream, data } = await requestLoginWithRetry(payload, requestId));
     }
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       if (upstream && data) break;
       try {
-        ({ upstream, data } = await requestAppsScript(payload, maxAttempts > 1 ? 26000 : 50000));
+        ({ upstream, data } = await requestAppsScript(payload, maxAttempts > 1 ? 26000 : 50000, `${payload.action}-${attempt}`));
         upstreamError = null;
         break;
       } catch (err) {
@@ -197,6 +241,9 @@ module.exports = async function handler(req, res) {
       message: String(err && err.message ? err.message : err),
       durationMs: Date.now() - startedAt
     }));
-    sendJson(res, 500, { ok: false, message: friendlyMessage(err.message) || "เชื่อมต่อระบบข้อมูลไม่สำเร็จ" });
+    sendJson(res, err && err.retryable ? 503 : 500, {
+      ok: false,
+      message: friendlyMessage(err.message) || "เชื่อมต่อระบบข้อมูลไม่สำเร็จ"
+    });
   }
 };
