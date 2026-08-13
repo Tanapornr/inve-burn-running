@@ -81,6 +81,30 @@ async function requestAppsScript(payload, timeoutMs) {
   return { upstream, data };
 }
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function requestLoginWithHedge(payload) {
+  let completed = false;
+  const primary = requestAppsScript(payload, 48000);
+  const secondary = sleep(5000).then(() => {
+    if (completed) return new Promise(() => {});
+    return requestAppsScript(payload, 43000);
+  });
+  try {
+    const result = await Promise.any([primary, secondary]);
+    completed = true;
+    return result;
+  } catch (err) {
+    completed = true;
+    if (err && Array.isArray(err.errors) && err.errors.length) {
+      throw err.errors[err.errors.length - 1];
+    }
+    throw err;
+  }
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let body = "";
@@ -124,11 +148,15 @@ module.exports = async function handler(req, res) {
       bodyBytes: Buffer.byteLength(rawBody, "utf8")
     }));
 
-    const maxAttempts = RETRY_SAFE_ACTIONS.has(payload.action) ? 2 : 1;
+    const maxAttempts = payload.action === "login" ? 1 : (RETRY_SAFE_ACTIONS.has(payload.action) ? 2 : 1);
     let upstream;
     let data;
     let upstreamError;
+    if (payload.action === "login") {
+      ({ upstream, data } = await requestLoginWithHedge(payload));
+    }
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      if (upstream && data) break;
       try {
         ({ upstream, data } = await requestAppsScript(payload, maxAttempts > 1 ? 26000 : 50000));
         upstreamError = null;

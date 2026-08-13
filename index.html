@@ -1936,7 +1936,7 @@
         return apiProxy(action, {
           ...payload,
           code: normalizeCode(payload.code || payload.employeeCode),
-          password: String(payload.password || "").trim()
+          password: String(payload.password || "")
         }, 65000);
       }
       if (action === "updateProfilePhoto") {

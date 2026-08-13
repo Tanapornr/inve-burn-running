@@ -171,7 +171,7 @@ function register(body) {
 
 function login(body) {
   const code = normalizeCode_(body.code || body.employeeCode);
-  const password = String(body.password || '').trim();
+  const password = String(body.password || '');
   const user = findUser_(code);
 
   if (!user || !passwordMatches_(user.passwordHash, password)) {
