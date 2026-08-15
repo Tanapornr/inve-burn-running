@@ -1,6 +1,9 @@
 ﻿const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyEIQPcHNrlYDqCJCMhGuZzO_RBrtrpIBaBuFvdECmP_ZzDsmsgaTy0-GYCEPh9yMYNVQ/exec";
 
-const PROXY_VERSION = "2026-08-13-login-retry-v2";
+const PROXY_VERSION = "2026-08-15-run-deadline-v3";
+const RUN_SUBMISSION_START_MS = Date.parse("2026-08-01T00:00:00+07:00");
+const RUN_SUBMISSION_END_MS = Date.parse("2026-08-15T23:59:59.999+07:00");
+const RUN_SUBMISSION_CLOSED_MESSAGE = "ปิดรับการอัปโหลดผลวิ่งแล้ว ระบบสิ้นสุดการรับผลเมื่อวันที่ 15 สิงหาคม 2569 เวลา 23.59 น.";
 
 const RETRY_SAFE_ACTIONS = new Set([
   "login",
@@ -164,6 +167,10 @@ function readBody(req) {
   });
 }
 
+function isRunSubmissionOpen(nowMs = Date.now()) {
+  return nowMs >= RUN_SUBMISSION_START_MS && nowMs <= RUN_SUBMISSION_END_MS;
+}
+
 module.exports = async function handler(req, res) {
   const requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const startedAt = Date.now();
@@ -181,6 +188,10 @@ module.exports = async function handler(req, res) {
     const rawBody = await readBody(req);
     const payload = rawBody ? JSON.parse(rawBody) : {};
     if (!payload.action) throw new Error("ไม่พบ action ที่ร้องขอ");
+    if (payload.action === "addRun" && !isRunSubmissionOpen()) {
+      sendJson(res, 403, { ok: false, message: RUN_SUBMISSION_CLOSED_MESSAGE });
+      return;
+    }
     if (payload.action === "login" && /^[a-f0-9]{64}$/i.test(String(payload.password || "").trim())) {
       throw new Error("รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง");
     }

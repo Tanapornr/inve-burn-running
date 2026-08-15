@@ -7,7 +7,7 @@ const CONFIG = {
   REGISTRATION_START: new Date('2026-07-09T00:00:00+07:00'),
   REGISTRATION_END: new Date('2026-07-31T23:59:59+07:00'),
   RUN_START: new Date('2026-08-01T00:00:00+07:00'),
-  RUN_END: new Date('2026-08-15T23:59:59+07:00'),
+  RUN_END: new Date('2026-08-15T23:59:59.999+07:00'),
   MAX_RUN_DISTANCE: 100,
   SESSION_TTL_MS: 24 * 60 * 60 * 1000
 };
@@ -217,6 +217,7 @@ function updateProfilePhoto(body) {
 }
 
 function addRunV2(body) {
+  ensureRunSubmissionOpen_();
   const code = normalizeCode_(body.code || body.employeeCode);
   requireSession_(body, code);
   const user = findUser_(code);
@@ -419,7 +420,16 @@ function parseRunDate_(value) {
   return runDate;
 }
 
+function ensureRunSubmissionOpen_() {
+  const now = new Date();
+  if (now < CONFIG.RUN_START) throw new Error('ระบบยังไม่เปิดรับการอัปโหลดผลวิ่ง');
+  if (now > CONFIG.RUN_END) {
+    throw new Error('ปิดรับการอัปโหลดผลวิ่งแล้ว ระบบสิ้นสุดการรับผลเมื่อวันที่ 15 สิงหาคม 2569 เวลา 23.59 น.');
+  }
+}
+
 function addRun(body) {
+  ensureRunSubmissionOpen_();
   const code = normalizeCode_(body.code || body.employeeCode);
   const user = findUser_(code);
   if (!user) throw new Error('กรุณาเข้าสู่ระบบก่อนบันทึกผล');

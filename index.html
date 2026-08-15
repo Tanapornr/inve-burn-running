@@ -733,6 +733,15 @@
     .modal-card h2 { margin: 0 0 14px; }
     .modal-card p { color: #52627d; font-weight: 700; margin: 0 0 18px; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+    .deadline-modal-card { text-align: center; border: 2px solid rgba(255,74,31,.28); background: linear-gradient(160deg, #fff, #fff7ef); }
+    .deadline-modal-icon { width: 82px; height: 82px; margin: 0 auto 16px; border-radius: 50%; display: grid; place-items: center; background: #fff0e8; font-size: 42px; }
+    .deadline-modal-card h2 { color: var(--navy); font-size: clamp(26px, 5vw, 34px); }
+    .deadline-modal-card p { font-size: 18px; line-height: 1.65; }
+    .deadline-modal-card strong { color: #e43d22; }
+    .deadline-modal-card .modal-actions { justify-content: center; }
+    .run-window-notice { margin: 0 0 18px; font-weight: 850; line-height: 1.55; }
+    .run-window-notice.final-day { background: #fff7df; border-color: #f4c451; color: #744b00; }
+    .run-window-notice.closed { background: #fff0ed; border-color: #ff9d8b; color: #a52718; }
     .password-wrap { position: relative; }
     .password-wrap input { padding-right: 48px; }
     .eye-btn { position: absolute; right: 10px; bottom: 7px; width: 34px; height: 34px; border-radius: 8px; background: #eef4ff; color: var(--navy); }
@@ -1314,6 +1323,7 @@
         <section class="panel">
           <div class="panel-body">
             <h2 style="margin-top:0">🏃 บันทึกผลการวิ่ง</h2>
+            <div class="notice run-window-notice" id="runSubmissionWindowNotice" role="status" aria-live="polite"></div>
             <form class="run-form" id="runForm">
               <section class="run-step-section">
                 <div class="run-step-title"><span class="run-step-badge">1</span> เลือกรูปหลักฐาน 1 รูป</div>
@@ -1527,6 +1537,16 @@
       </div>
     </div>
   </div>
+  <div class="modal" id="runSubmissionWindowModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="runSubmissionWindowModalTitle">
+    <div class="modal-card deadline-modal-card">
+      <div class="deadline-modal-icon" id="runSubmissionWindowModalIcon">⏰</div>
+      <h2 id="runSubmissionWindowModalTitle">วันนี้เป็นวันสุดท้ายของการอัปโหลดผลวิ่ง</h2>
+      <p id="runSubmissionWindowModalMessage">กรุณาบันทึกผลและรูปหลักฐานให้เรียบร้อยภายในวันที่ 15 สิงหาคม 2569 เวลา 23.59 น.</p>
+      <div class="modal-actions">
+        <button class="btn btn-navy" type="button" data-run-window-close>รับทราบ</button>
+      </div>
+    </div>
+  </div>
   <div class="proof-modal" id="proofModal" role="dialog" aria-modal="true" aria-hidden="true">
     <button class="proof-modal-backdrop" type="button" data-proof-close aria-label="ปิดรูป"></button>
     <div class="proof-modal-card">
@@ -1563,6 +1583,11 @@
     const ADMIN_GOAL_RANKING_PAGE_SIZE = 10;
     const REGISTRATION_START = new Date("2026-07-20T00:00:00+07:00");
     const REGISTRATION_END = new Date("2026-07-25T23:59:59+07:00");
+    const RUN_SUBMISSION_START = new Date("2026-08-01T00:00:00+07:00");
+    const RUN_SUBMISSION_FINAL_DAY = new Date("2026-08-15T00:00:00+07:00");
+    const RUN_SUBMISSION_END = new Date("2026-08-15T23:59:59.999+07:00");
+    const RUN_SUBMISSION_DEADLINE_TEXT = "วันที่ 15 สิงหาคม 2569 เวลา 23.59 น.";
+    let runSubmissionWasOpen = null;
 
     const distanceChoices = [
       { value: 10, label: "พิชิตสิบกิโล" },
@@ -1727,6 +1752,7 @@
           uploadStatus.textContent = "✅ รูปพร้อมบันทึกแล้ว";
         }
       }
+      updateRunSubmissionWindowUi();
     }
 
     function getRunImageKey(file) {
@@ -1957,6 +1983,9 @@
         return apiJsonp(action, payload);
       }
       if (action === "addRun") {
+        if (!isRunSubmissionOpen()) {
+          throw new Error(`ปิดรับการอัปโหลดผลวิ่งแล้ว ระบบสิ้นสุดการรับผลเมื่อ${RUN_SUBMISSION_DEADLINE_TEXT}`);
+        }
         const authenticatedPayload = { ...payload, sessionToken: appState.sessionToken };
         const beforeCount = Number(authenticatedPayload.beforeCount ?? appState.runs.length);
         try {
@@ -2898,6 +2927,78 @@
       }
     }
 
+    function isRunSubmissionOpen(now = new Date()) {
+      return now >= RUN_SUBMISSION_START && now <= RUN_SUBMISSION_END;
+    }
+
+    function isRunSubmissionFinalDay(now = new Date()) {
+      return now >= RUN_SUBMISSION_FINAL_DAY && now <= RUN_SUBMISSION_END;
+    }
+
+    function getRunSubmissionWindowMessage(now = new Date()) {
+      if (now > RUN_SUBMISSION_END) {
+        return `ปิดรับการอัปโหลดผลวิ่งแล้ว ระบบสิ้นสุดการรับผลเมื่อ${RUN_SUBMISSION_DEADLINE_TEXT}`;
+      }
+      if (now < RUN_SUBMISSION_START) return "ระบบยังไม่เปิดรับการอัปโหลดผลวิ่ง";
+      if (isRunSubmissionFinalDay(now)) {
+        return `วันนี้เป็นวันสุดท้ายของการอัปโหลดผลวิ่ง กรุณาบันทึกผลและรูปหลักฐานให้เรียบร้อยภายใน${RUN_SUBMISSION_DEADLINE_TEXT} หลังจากเวลานี้ระบบจะปิดรับผลอัตโนมัติ`;
+      }
+      return `ระบบเปิดรับการอัปโหลดผลวิ่งถึง${RUN_SUBMISSION_DEADLINE_TEXT}`;
+    }
+
+    function showRunSubmissionWindowModal(now = new Date()) {
+      if (!isRunSubmissionFinalDay(now) && now <= RUN_SUBMISSION_END) return;
+      const modal = document.getElementById("runSubmissionWindowModal");
+      if (!modal) return;
+      const isClosed = now > RUN_SUBMISSION_END;
+      document.getElementById("runSubmissionWindowModalIcon").textContent = isClosed ? "🔒" : "⏰";
+      document.getElementById("runSubmissionWindowModalTitle").textContent = isClosed
+        ? "ปิดรับการอัปโหลดผลวิ่งแล้ว"
+        : "วันนี้เป็นวันสุดท้ายของการอัปโหลดผลวิ่ง";
+      document.getElementById("runSubmissionWindowModalMessage").innerHTML = isClosed
+        ? `ระบบสิ้นสุดการรับผลเมื่อ<strong>${RUN_SUBMISSION_DEADLINE_TEXT}</strong> และไม่สามารถส่งผลวิ่งใหม่ได้แล้ว`
+        : `กรุณาบันทึกผลและรูปหลักฐานให้เรียบร้อยภายใน<strong>${RUN_SUBMISSION_DEADLINE_TEXT}</strong><br>หลังจากเวลานี้ระบบจะปิดรับผลอัตโนมัติ`;
+      modal.classList.add("show");
+      modal.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeRunSubmissionWindowModal() {
+      const modal = document.getElementById("runSubmissionWindowModal");
+      if (!modal) return;
+      modal.classList.remove("show");
+      modal.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+    }
+
+    function updateRunSubmissionWindowUi(now = new Date()) {
+      const isOpen = isRunSubmissionOpen(now);
+      const isFinalDay = isRunSubmissionFinalDay(now);
+      const notice = document.getElementById("runSubmissionWindowNotice");
+      if (notice) {
+        notice.textContent = getRunSubmissionWindowMessage(now);
+        notice.classList.toggle("final-day", isFinalDay);
+        notice.classList.toggle("closed", !isOpen);
+      }
+      ["runImage", "runDistance", "runDate", "runNote"].forEach(id => {
+        const control = document.getElementById(id);
+        if (control) control.disabled = !isOpen;
+      });
+      const submitButton = document.getElementById("runSubmitBtn");
+      if (submitButton && !appState.isUploadingRun) {
+        submitButton.disabled = !isOpen;
+        submitButton.textContent = isOpen ? "บันทึกผลการวิ่ง" : "ปิดรับการบันทึกผลแล้ว";
+      }
+      return isOpen;
+    }
+
+    function refreshRunSubmissionWindow() {
+      const now = new Date();
+      const isOpen = updateRunSubmissionWindowUi(now);
+      if (runSubmissionWasOpen === true && !isOpen) showRunSubmissionWindowModal(now);
+      runSubmissionWasOpen = isOpen;
+    }
+
     function upsertRegisteredUser(employee) {
       if (!employee?.code) return;
       const normalizedEmployee = {
@@ -3322,6 +3423,7 @@
           <td><b>${fmt.format(run.cumulative)}</b></td>
         </tr>
       `).join("");
+      updateRunSubmissionWindowUi();
     }
 
     function clearEmployeeFields() {
@@ -3783,6 +3885,11 @@
     }
 
     document.getElementById("runImage").addEventListener("change", async event => {
+      if (!isRunSubmissionOpen()) {
+        event.target.value = "";
+        showRunSubmissionWindowModal();
+        return toast(getRunSubmissionWindowMessage());
+      }
       if (appState.isUploadingRun) {
         event.target.value = "";
         return toast("ระบบกำลังบันทึกผลอยู่ กรุณารอให้เสร็จก่อนเลือกรูปใหม่");
@@ -3833,6 +3940,11 @@
 
     document.getElementById("runForm").addEventListener("submit", async event => {
       event.preventDefault();
+      if (!isRunSubmissionOpen()) {
+        updateRunSubmissionWindowUi();
+        showRunSubmissionWindowModal();
+        return toast(getRunSubmissionWindowMessage());
+      }
       const submitButton = document.getElementById("runSubmitBtn");
       if (appState.isUploadingRun) {
         const elapsed = Date.now() - Number(appState.uploadStartedAt || 0);
@@ -4009,11 +4121,13 @@
           appState.uploadStartedAt = 0;
           appState.runUploadToken = "";
           setButtonLoading(submitButton, false);
+          updateRunSubmissionWindowUi();
         }
       }
     });
 
     document.getElementById("runUploadOverlayClose").addEventListener("click", closeRunUploadOverlay);
+    document.querySelectorAll("[data-run-window-close]").forEach(button => button.addEventListener("click", closeRunSubmissionWindowModal));
 
     document.querySelectorAll("[data-toggle-password]").forEach(button => {
       button.addEventListener("click", () => {
@@ -4085,6 +4199,9 @@
 
     async function init() {
       document.getElementById("runDate").valueAsDate = new Date();
+      refreshRunSubmissionWindow();
+      window.setTimeout(() => showRunSubmissionWindowModal(new Date()), 180);
+      window.setInterval(refreshRunSubmissionWindow, 15000);
       restoreCurrentUserSession();
       updateAuthUi();
       startUserInactivityTracking();
@@ -4121,6 +4238,7 @@
       document.addEventListener("visibilitychange", () => {
         if (!document.hidden) {
           checkUserInactivity();
+          refreshRunSubmissionWindow();
           refreshLiveData();
         }
       });
