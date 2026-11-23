@@ -2664,20 +2664,13 @@
 
     async function loginFromSheet(payload = {}) {
       const code = normalizeCode(payload.code || payload.employeeCode);
-      const password = String(payload.password || "");
       const [users, runs] = await Promise.all([
         loadSheetRows("Users"),
         loadSheetRows("Runs").catch(() => [])
       ]);
       const user = users.find(row => codeMatches(row.code, code));
-      const passwordHash = await sha256(password);
       if (!user) {
         throw new Error("ยังไม่ได้ลงทะเบียน");
-      }
-
-      const storedPassword = String(user.passwordHash || "").trim();
-      if (storedPassword.toLowerCase() !== passwordHash && storedPassword !== password) {
-        throw new Error("รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง");
       }
 
       return buildLoginResultFromUser(user, runs);

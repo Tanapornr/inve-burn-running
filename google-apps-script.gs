@@ -179,13 +179,9 @@ function register(body) {
 
 function login(body) {
   const code = normalizeCode_(body.code || body.employeeCode);
-  const password = String(body.password || code);
   const user = findUser_(code);
 
-  if (!user || !passwordMatches_(user.passwordHash, password)) {
-    throw new Error('รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง');
-  }
-  upgradePlainPasswordIfNeeded_(code, user.passwordHash, password);
+  if (!user) throw new Error('ยังไม่ได้ลงทะเบียน');
 
   const runs = sheetToObjects_(getSheet_(CONFIG.RUNS_SHEET));
   return {
