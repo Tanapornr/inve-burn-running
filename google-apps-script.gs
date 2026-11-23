@@ -863,7 +863,7 @@ function upgradePlainPasswordIfNeeded_(code, storedPassword, password) {
 
 function normalizeCode_(code) {
   const value = String(code || '').trim().toUpperCase();
-  return /^\d+$/.test(value) ? value.padStart(4, '0') : value;
+  return /^\d+$/.test(value) ? value.padStart(3, '0') : value;
 }
 
 function normalizeRunId_(runId) {
