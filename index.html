@@ -2244,7 +2244,7 @@
 
     function normalizeCode(code) {
       const value = String(code || "").trim().toUpperCase();
-      return /^\d+$/.test(value) ? value.padStart(3, "0") : value;
+      return /^\d+$/.test(value) ? value.padStart(4, "0") : value;
     }
 
     function hashRunFingerprint(value = "") {
