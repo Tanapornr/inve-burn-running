@@ -4,10 +4,10 @@ const CONFIG = {
   USERS_SHEET: 'Users',
   RUNS_SHEET: 'Runs',
   DRIVE_FOLDER_ID: '1GuVb0RtKR24dpBiJhO9ITSgrxCpg9J1-',
-  REGISTRATION_START: new Date('2026-07-09T00:00:00+07:00'),
-  REGISTRATION_END: new Date('2026-07-31T23:59:59+07:00'),
-  RUN_START: new Date('2026-08-01T00:00:00+07:00'),
-  RUN_END: new Date('2026-08-15T23:59:59.999+07:00'),
+  REGISTRATION_START: new Date('2026-11-23T00:00:00+07:00'),
+  REGISTRATION_END: new Date('2026-11-27T23:59:59+07:00'),
+  RUN_START: new Date('2026-12-01T00:00:00+07:00'),
+  RUN_END: new Date('2026-12-20T23:59:59.999+07:00'),
   MAX_RUN_DISTANCE: 100,
   SESSION_TTL_MS: 24 * 60 * 60 * 1000
 };
@@ -69,14 +69,14 @@ function routeAction_(body) {
 
 function setupSheets() {
   const ss = getSpreadsheet_();
-  ensureSheet_(ss, CONFIG.EMPLOYEES_SHEET, ['Emp ID', 'Prefix', 'FirstName', 'LastName', 'Department', 'Email', 'Status']);
-  ensureSheet_(ss, CONFIG.USERS_SHEET, ['code', 'name', 'department', 'goal', 'passwordHash', 'registeredAt', 'profilePhotoBase64']);
-  ensureSheet_(ss, CONFIG.RUNS_SHEET, ['id', 'code', 'name', 'department', 'distance', 'date', 'note', 'imageUrl', 'createdAt', 'submissionKey']);
+  ensureSheet_(ss, CONFIG.EMPLOYEES_SHEET, ['Emp ID', 'FirstName', 'LastName', 'Department', 'Email', 'Status']);
+  ensureSheet_(ss, CONFIG.USERS_SHEET, ['code', 'name', 'department', 'goal', 'passwordHash', 'profilePhotoBase64', 'registeredAt', 'status']);
+  ensureSheet_(ss, CONFIG.RUNS_SHEET, ['id', 'code', 'name', 'department', 'distance', 'date', 'note', 'imageUrl', 'cumulative', 'createdAt', 'reviewStatus', 'reviewNote', 'reviewedAt']);
 }
 
 function ensureSetup_() {
   const cache = CacheService.getScriptCache();
-  const cacheKey = 'INVE_SHEETS_READY_V3';
+  const cacheKey = 'INVE_SHEETS_READY_SEASON2_V1';
   if (cache.get(cacheKey)) return;
   setupSheets();
   cache.put(cacheKey, '1', 21600);
@@ -136,13 +136,13 @@ function listEmployees() {
 function register(body) {
   const code = normalizeCode_(body.code || body.employeeCode);
   const goal = Number(body.goal);
-  const password = String(body.password || '');
+  const password = code;
 
   const now = new Date();
   if (now > CONFIG.REGISTRATION_END) throw new Error('ปิดการรับสมัครลงทะเบียนแล้ว');
-  if (now < CONFIG.REGISTRATION_START) throw new Error('ยังไม่อยู่ในช่วงรับสมัคร เปิดรับสมัครวันที่ 9 - 31 กรกฎาคม 2569');
-  if (![10, 20].includes(goal)) throw new Error('กรุณาเลือกระยะ 10 หรือ 20 KM');
-  if (password.length < 6) throw new Error('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+  if (now < CONFIG.REGISTRATION_START) throw new Error('ยังไม่อยู่ในช่วงรับสมัคร เปิดรับสมัครวันที่ 23 - 27 พฤศจิกายน 2569');
+  if (![15, 30].includes(goal)) throw new Error('กรุณาเลือกระยะ 15 หรือ 30 KM');
+  if (!code) throw new Error('กรุณาระบุรหัสพนักงาน');
 
   const employee = findEmployee_(code);
   if (!employee) throw new Error('ไม่พบข้อมูลพนักงาน');
@@ -156,8 +156,16 @@ function register(body) {
     if (userIndex >= 0) throw new Error('บัญชีนี้มีอยู่แล้ว กรุณาเข้าสู่ระบบ');
 
     const employeeDto = employeeToDto_(employee);
-    const userRow = [employeeDto.code, employeeDto.name, employeeDto.department, goal, hashPassword_(password), new Date(), ''];
-    usersSheet.appendRow(userRow);
+    appendObjectRow_(usersSheet, {
+      code: employeeDto.code,
+      name: employeeDto.name,
+      department: employeeDto.department,
+      goal,
+      passwordHash: hashPassword_(password),
+      profilePhotoBase64: '',
+      registeredAt: new Date(),
+      status: 'active'
+    });
   } finally {
     lock.releaseLock();
   }
@@ -171,7 +179,7 @@ function register(body) {
 
 function login(body) {
   const code = normalizeCode_(body.code || body.employeeCode);
-  const password = String(body.password || '');
+  const password = String(body.password || code);
   const user = findUser_(code);
 
   if (!user || !passwordMatches_(user.passwordHash, password)) {
@@ -198,7 +206,7 @@ function updateProfilePhoto(body) {
   if (profilePhotoBase64.length > 45000) throw new Error('รูปโปรไฟล์ใหญ่เกินไป กรุณาเลือกรูปใหม่');
 
   const sheet = getSheet_(CONFIG.USERS_SHEET);
-  ensureSheet_(getSpreadsheet_(), CONFIG.USERS_SHEET, ['code', 'name', 'department', 'goal', 'passwordHash', 'registeredAt', 'profilePhotoBase64']);
+  ensureSheet_(getSpreadsheet_(), CONFIG.USERS_SHEET, ['code', 'name', 'department', 'goal', 'passwordHash', 'profilePhotoBase64', 'registeredAt', 'status']);
   const values = sheet.getDataRange().getValues();
   const headers = values[0].map(String);
   const codeIndex = headers.indexOf('code');
@@ -261,18 +269,24 @@ function addRunV2(body) {
         return buildRunResponse_(code, user, true);
       }
 
-      getSheet_(CONFIG.RUNS_SHEET).appendRow([
-        runId,
-        user.code,
-        user.name,
-        user.department,
+      const cumulative = runsBeforeUpload
+        .filter(row => codeMatches_(row.code, code))
+        .reduce((sum, row) => sum + Number(row.distance || 0), distance);
+      appendObjectRow_(getSheet_(CONFIG.RUNS_SHEET), {
+        id: runId,
+        code: user.code,
+        name: user.name,
+        department: user.department,
         distance,
-        runDate,
-        body.note || '',
-        imageFile.url,
-        new Date(),
-        submissionKey
-      ]);
+        date: runDate,
+        note: body.note || '',
+        imageUrl: imageFile.url,
+        cumulative,
+        createdAt: new Date(),
+        reviewStatus: 'pending',
+        reviewNote: '',
+        reviewedAt: ''
+      });
       rowCommitted = true;
     } finally {
       if (lockAcquired) lock.releaseLock();
@@ -388,7 +402,10 @@ function mapRunsByCode_(code, runs) {
         date: row.date,
         note: row.note || '',
         imageUrl: row.imageUrl || '',
-        cumulative
+        cumulative,
+        reviewStatus: row.reviewStatus || 'pending',
+        reviewNote: row.reviewNote || '',
+        reviewedAt: row.reviewedAt || ''
       };
     })
     .sort((left, right) => new Date(right.date) - new Date(left.date));
@@ -404,7 +421,11 @@ function mapAllRuns_(runs) {
     date: row.date,
     note: row.note || '',
     imageUrl: row.imageUrl || '',
-    createdAt: row.createdAt || ''
+    cumulative: Number(row.cumulative || 0),
+    createdAt: row.createdAt || '',
+    reviewStatus: row.reviewStatus || 'pending',
+    reviewNote: row.reviewNote || '',
+    reviewedAt: row.reviewedAt || ''
   }));
 }
 
@@ -415,7 +436,7 @@ function parseRunDate_(value) {
     : new Date(text || new Date());
   if (Number.isNaN(runDate.getTime())) throw new Error('วันที่วิ่งไม่ถูกต้อง');
   if (runDate < CONFIG.RUN_START || runDate > CONFIG.RUN_END) {
-    throw new Error('บันทึกผลได้เฉพาะวันที่ 1 - 15 สิงหาคม 2569');
+    throw new Error('บันทึกผลได้เฉพาะวันที่ 1 - 20 ธันวาคม 2569');
   }
   return runDate;
 }
@@ -424,7 +445,7 @@ function ensureRunSubmissionOpen_() {
   const now = new Date();
   if (now < CONFIG.RUN_START) throw new Error('ระบบยังไม่เปิดรับการอัปโหลดผลวิ่ง');
   if (now > CONFIG.RUN_END) {
-    throw new Error('ปิดรับการอัปโหลดผลวิ่งแล้ว ระบบสิ้นสุดการรับผลเมื่อวันที่ 15 สิงหาคม 2569 เวลา 23.59 น.');
+    throw new Error('ปิดรับการอัปโหลดผลวิ่งแล้ว ระบบสิ้นสุดการรับผลเมื่อวันที่ 20 ธันวาคม 2569 เวลา 23.59 น.');
   }
 }
 
@@ -859,17 +880,15 @@ function codeMatches_(left, right) {
 
 function employeeToDto_(row) {
   const code = getRowValue_(row, ['code', 'Emp ID', 'Employee ID', 'รหัสพนักงาน']);
-  const prefix = getRowValue_(row, ['prefix', 'Prefix', 'คำนำหน้า']);
   const firstName = getRowValue_(row, ['firstName', 'FirstName', 'First Name', 'ชื่อ']);
   const lastName = getRowValue_(row, ['lastName', 'LastName', 'Last Name', 'นามสกุล']);
   const explicitName = getRowValue_(row, ['name', 'Name', 'FullName', 'Full Name', 'ชื่อ-นามสกุล']);
   const department = getRowValue_(row, ['department', 'Department', 'แผนก']);
   const email = getRowValue_(row, ['email', 'Email', 'อีเมล']);
   const status = getRowValue_(row, ['status', 'Status', 'สถานะ']);
-  const name = explicitName || [prefix, firstName, lastName].filter(Boolean).join(' ').trim();
+  const name = explicitName || [firstName, lastName].filter(Boolean).join(' ').trim();
   return {
     code: normalizeCode_(code),
-    prefix,
     firstName,
     lastName,
     name,
@@ -910,6 +929,13 @@ function ensureSheet_(ss, name, headers) {
     sheet.getRange(1, currentHeaders.length + 1, 1, missingHeaders.length).setValues([missingHeaders]);
   }
   return sheet;
+}
+
+function appendObjectRow_(sheet, valuesByHeader) {
+  const lastColumn = Math.max(sheet.getLastColumn(), 1);
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(String);
+  const row = headers.map(header => Object.prototype.hasOwnProperty.call(valuesByHeader, header) ? valuesByHeader[header] : '');
+  sheet.appendRow(row);
 }
 
 function sheetToObjects_(sheet) {

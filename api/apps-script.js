@@ -1,9 +1,9 @@
 ﻿const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyEIQPcHNrlYDqCJCMhGuZzO_RBrtrpIBaBuFvdECmP_ZzDsmsgaTy0-GYCEPh9yMYNVQ/exec";
 
-const PROXY_VERSION = "2026-08-15-run-deadline-v3";
-const RUN_SUBMISSION_START_MS = Date.parse("2026-08-01T00:00:00+07:00");
-const RUN_SUBMISSION_END_MS = Date.parse("2026-08-15T23:59:59.999+07:00");
-const RUN_SUBMISSION_CLOSED_MESSAGE = "ปิดรับการอัปโหลดผลวิ่งแล้ว ระบบสิ้นสุดการรับผลเมื่อวันที่ 15 สิงหาคม 2569 เวลา 23.59 น.";
+const PROXY_VERSION = "2026-11-23-season2-central-data-v1";
+const RUN_SUBMISSION_START_MS = Date.parse("2026-12-01T00:00:00+07:00");
+const RUN_SUBMISSION_END_MS = Date.parse("2026-12-20T23:59:59.999+07:00");
+const RUN_SUBMISSION_CLOSED_MESSAGE = "ปิดรับการอัปโหลดผลวิ่งแล้ว ระบบสิ้นสุดการรับผลเมื่อวันที่ 20 ธันวาคม 2569 เวลา 23.59 น.";
 
 const RETRY_SAFE_ACTIONS = new Set([
   "login",
