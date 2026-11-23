@@ -1608,6 +1608,29 @@
       return getSeason2Registrations()[normalizeCode(code)] || null;
     }
 
+    let legacyRegistrationSyncPromise = null;
+    async function syncLegacyRegistrationsToCentral() {
+      if (legacyRegistrationSyncPromise) return legacyRegistrationSyncPromise;
+      const localUsers = Object.values(getSeason2Registrations())
+        .filter(user => normalizeCode(user?.code));
+      legacyRegistrationSyncPromise = (async () => {
+        for (const user of localUsers) {
+          try {
+            await apiProxy("register", {
+              code: normalizeCode(user.code),
+              goal: normalizeGoalDistance(user.goal),
+              password: normalizeCode(user.code)
+            }, 30000);
+          } catch (err) {
+            if (!/บัญชีนี้มีอยู่แล้ว|already registered/i.test(err?.message || "")) {
+              console.warn("Legacy registration sync failed", err);
+            }
+          }
+        }
+      })();
+      return legacyRegistrationSyncPromise;
+    }
+
     function normalizeGoalDistance(goal) {
       const directValue = Number(goal);
       if (GOAL_DISTANCES.includes(directValue)) return directValue;
@@ -2526,6 +2549,7 @@
 
     async function loadRegisteredData() {
       try {
+        await syncLegacyRegistrationsToCentral();
         const dashboard = await fetchDashboardData({});
         const apiUsers = Array.isArray(dashboard?.leaderboard) ? dashboard.leaderboard : [];
         const apiRuns = Array.isArray(dashboard?.runs) ? dashboard.runs : [];
